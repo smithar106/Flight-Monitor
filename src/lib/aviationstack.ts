@@ -173,7 +173,7 @@ async function fetchCarrierActive(carrierIata: string): Promise<RawFlight[]> {
       if (json?.error) {
         const code = json.error.code;
         if (code === "usage_limit_reached" || code === "rate_limit_reached") {
-          throw new Error("AviationStack monthly limit reached");
+          throw new Error("AviationStack monthly request limit reached — live data resumes next month");
         }
         throw new Error(`AviationStack error: ${json.error.message ?? code ?? "unknown"}`);
       }

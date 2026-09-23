@@ -19,7 +19,7 @@ function summary(o: NationalOverview): string {
     case "normal":
       return "U.S. aviation is operating close to historical norms.";
     case "elevated":
-      return `${disrupted} major airports are showing elevated disruption, with delays above their normal range.`;
+      return `${disrupted} major airports are showing elevated disruption.`;
     case "high":
       return `Disruption is elevated across the network — ${o.airportsHigh} airports are high and ${o.airportsSevere} severe.`;
     case "severe":
@@ -73,23 +73,23 @@ export function Hero({
             ) : (
               <span className="inline-flex items-center gap-1.5 text-elevated">
                 <span className="h-1.5 w-1.5 rounded-full bg-elevated" />
-                Live data unavailable
+                Live paused
               </span>
             )}
           </div>
         </div>
 
         <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-line pt-8 sm:grid-cols-3 lg:grid-cols-6">
-          <Metric value={fmtInt(overview.flightsTracked)} label="Flights tracked" />
-          <Metric value={fmtPct(overview.onTimePct)} label="On time" />
+          <Metric value={live ? fmtInt(overview.flightsTracked) : "—"} label="Flights tracked" />
+          <Metric value={live ? fmtPct(overview.onTimePct) : "—"} label="On time" />
           <Metric
-            value={fmtPct(overview.delayPct)}
+            value={live ? fmtPct(overview.delayPct) : "—"}
             label="Delayed"
-            sub={<Delta value={overview.delayDeltaPct} />}
+            sub={live ? <Delta value={overview.delayDeltaPct} /> : undefined}
           />
           <Metric label="Canceled (baseline)" value={fmtPct(overview.canceledPctBaseline)} />
           <Metric
-            value={overview.avgDelayMin !== null ? `${overview.avgDelayMin} min` : "—"}
+            value={live && overview.avgDelayMin !== null ? `${overview.avgDelayMin} min` : "—"}
             label="Average delay"
           />
           <Metric
@@ -101,16 +101,19 @@ export function Hero({
 
         <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-1 text-[0.75rem] text-ink-faint">
           {live ? (
-            <span>
-              Live sample · {liveSampleSize} flights across {liveCarriers} carriers · updated{" "}
-              {fmtClock(updated)} UTC
-            </span>
+            <>
+              <span>
+                Live sample · {liveSampleSize} flights across {liveCarriers} carriers · updated{" "}
+                {fmtClock(updated)} UTC
+              </span>
+              <span>Historical baselines · {baselineSource}</span>
+            </>
           ) : (
-            <span className="text-elevated">
-              Live data unavailable{liveReason ? ` — ${liveReason}` : ""}
+            <span className="font-medium text-elevated">
+              Live data paused{liveReason ? ` — ${liveReason}` : ""}. Showing historical baselines (
+              {baselineSource}).
             </span>
           )}
-          <span>Historical baselines · {baselineSource}</span>
         </div>
       </div>
     </section>

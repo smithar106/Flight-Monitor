@@ -105,13 +105,6 @@ export default function Page() {
         liveCarriers={liveCarriers}
       />
 
-      {!live && (
-        <div className="border-b border-elevated-soft bg-elevated-soft px-5 py-2 text-center text-[0.8125rem] text-elevated">
-          Live flight status is unavailable{liveReason ? ` (${liveReason})` : ""} — showing
-          historical baselines.
-        </div>
-      )}
-
       <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
         <Brief />
       </section>
