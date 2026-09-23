@@ -10,7 +10,6 @@ const base = {
   baselineCanceledPct: 1,
   baselineAvgDelayMin: 30,
   liveDelayPct: null as number | null,
-  liveCanceledCount: 0,
 };
 
 describe("computeDisruptionScore", () => {
@@ -20,7 +19,6 @@ describe("computeDisruptionScore", () => {
       baselineCanceledPct: 10,
       baselineAvgDelayMin: 90,
       liveDelayPct: 80,
-      liveCanceledCount: 40,
     });
     expect(r.score).toBeGreaterThanOrEqual(0);
     expect(r.score).toBeLessThanOrEqual(100);
@@ -32,7 +30,6 @@ describe("computeDisruptionScore", () => {
       baselineCanceledPct: 0,
       baselineAvgDelayMin: 0,
       liveDelayPct: 0,
-      liveCanceledCount: 0,
     });
     expect(r.score).toBe(0);
     expect(r.status).toBe("normal");
@@ -45,17 +42,9 @@ describe("computeDisruptionScore", () => {
     expect(above.breakdown.liveDeviation).toBeGreaterThan(atBaseline.breakdown.liveDeviation);
   });
 
-  it("contributes points for live cancellations", () => {
-    const none = computeDisruptionScore(base);
-    const withCancel = computeDisruptionScore({ ...base, liveCanceledCount: 12 });
-    expect(withCancel.breakdown.liveCancellations).toBe(12);
-    expect(withCancel.score).toBeGreaterThan(none.score);
-  });
-
-  it("ignores live components when live data is absent", () => {
+  it("ignores live deviation when live data is absent", () => {
     const noLive = computeDisruptionScore(base);
     expect(noLive.breakdown.liveDeviation).toBe(0);
-    expect(noLive.breakdown.liveCancellations).toBe(0);
   });
 
   it("maps scores to the documented bands", () => {

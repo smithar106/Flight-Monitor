@@ -102,7 +102,6 @@ export function AirportDrawer({
                     : undefined
                 }
               />
-              <Row label="Canceled today" value={fmtInt(a.metrics.canceledToday)} />
               <Row
                 label="Average delay"
                 value={a.metrics.avgDelayMin !== null ? `${a.metrics.avgDelayMin} min` : "—"}

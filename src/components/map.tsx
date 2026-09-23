@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { geoAlbersUsa, geoPath, geoGraticule10 } from "d3-geo";
 import { feature } from "topojson-client";
-import type { AirportPerformance } from "@/lib/types";
+import type { AirportPerformance, Route } from "@/lib/types";
 import { STATUS_META } from "@/lib/format";
 
 const WIDTH = 960;
@@ -11,10 +11,22 @@ const HEIGHT = 560;
 
 interface Props {
   airports: AirportPerformance[];
+  routes: Route[];
   onSelect: (a: AirportPerformance) => void;
 }
 
-export function MapView({ airports, onSelect }: Props) {
+function arcPath(x1: number, y1: number, x2: number, y2: number): string {
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const bend = Math.min(dist * 0.18, 42);
+  const cy = my - bend;
+  return `M ${x1} ${y1} Q ${mx} ${cy} ${x2} ${y2}`;
+}
+
+export function MapView({ airports, routes, onSelect }: Props) {
   const [nation, setNation] = useState<any>(null);
   const [hovered, setHovered] = useState<AirportPerformance | null>(null);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
@@ -52,6 +64,19 @@ export function MapView({ airports, onSelect }: Props) {
     [airports, projection]
   );
 
+  const posByIata = useMemo(() => {
+    const m = new Map<string, [number, number]>();
+    for (const { a, pos } of points) {
+      if (pos) m.set(a.airport.iata, pos);
+    }
+    return m;
+  }, [points]);
+
+  const maxFlights = useMemo(
+    () => routes.reduce((mx, r) => Math.max(mx, r.flights), 1),
+    [routes]
+  );
+
   const radiusFor = (score: number) => 3 + Math.max(0, Math.min(score, 100)) / 18;
 
   return (
@@ -63,22 +88,14 @@ export function MapView({ airports, onSelect }: Props) {
         aria-label="United States airport disruption map"
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
-          setCursor({
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
-          });
+          setCursor({ x: e.clientX - rect.left, y: e.clientY - rect.top });
         }}
         onMouseLeave={() => {
           setHovered(null);
           setCursor(null);
         }}
       >
-        <path
-          d={path(graticule) ?? undefined}
-          fill="none"
-          stroke="#EDF0F3"
-          strokeWidth={0.5}
-        />
+        <path d={path(graticule) ?? undefined} fill="none" stroke="#EDF0F3" strokeWidth={0.5} />
         {nation && (
           <path
             d={path(nation) ?? undefined}
@@ -87,6 +104,26 @@ export function MapView({ airports, onSelect }: Props) {
             strokeWidth={0.75}
           />
         )}
+
+        {routes.map((r) => {
+          const p1 = posByIata.get(r.originIata);
+          const p2 = posByIata.get(r.destIata);
+          if (!p1 || !p2) return null;
+          const w = 0.6 + (r.flights / maxFlights) * 1.8;
+          const opacity = 0.12 + (r.flights / maxFlights) * 0.28;
+          return (
+            <path
+              key={`${r.originIata}-${r.destIata}`}
+              d={arcPath(p1[0], p1[1], p2[0], p2[1])}
+              fill="none"
+              stroke="#2563EB"
+              strokeWidth={w}
+              strokeLinecap="round"
+              opacity={opacity}
+            />
+          );
+        })}
+
         {points.map(({ a, pos }) => {
           if (!pos) return null;
           const meta = STATUS_META[a.status];
@@ -98,12 +135,7 @@ export function MapView({ airports, onSelect }: Props) {
               onClick={() => onSelect(a)}
               className="cursor-pointer"
             >
-              <circle
-                cx={pos[0]}
-                cy={pos[1]}
-                r={r + 5}
-                fill="transparent"
-              />
+              <circle cx={pos[0]} cy={pos[1]} r={r + 5} fill="transparent" />
               <circle
                 cx={pos[0]}
                 cy={pos[1]}
@@ -133,18 +165,13 @@ export function MapView({ airports, onSelect }: Props) {
       {hovered && cursor && (
         <div
           className="pointer-events-none absolute z-10 min-w-[150px] rounded-lg border border-line bg-surface px-3 py-2 shadow-raised"
-          style={{
-            left: cursor.x + 14,
-            top: cursor.y + 10,
-          }}
+          style={{ left: cursor.x + 14, top: cursor.y + 10 }}
         >
           <div className="text-xs font-semibold text-ink">
             {hovered.airport.iata} · {hovered.airport.city}
           </div>
           <div className="mt-0.5 flex items-center gap-1.5 text-[0.6875rem] text-ink-muted">
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${STATUS_META[hovered.status].dot}`}
-            />
+            <span className={`h-1.5 w-1.5 rounded-full ${STATUS_META[hovered.status].dot}`} />
             {STATUS_META[hovered.status].label} · {hovered.disruptionScore}/100
           </div>
         </div>

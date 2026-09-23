@@ -84,6 +84,7 @@ export default function Page() {
     overview,
     airports,
     airlines,
+    routes,
     baselineSource,
     live,
     liveReason,
@@ -125,8 +126,27 @@ export default function Page() {
         />
         <div className="grid gap-6 lg:grid-cols-5">
           <Card className="p-4 lg:col-span-3">
-            <MapView airports={airports} onSelect={setSelected} />
+            <MapView airports={airports} routes={routes} onSelect={setSelected} />
+            {routes.length > 0 && (
+              <div className="mt-3 border-t border-line pt-3">
+                <div className="text-[0.6875rem] font-medium uppercase tracking-eyebrow text-ink-faint">
+                  Busiest routes
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {routes.slice(0, 10).map((r) => (
+                    <span
+                      key={`${r.originIata}-${r.destIata}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-2.5 py-1 font-mono text-[0.6875rem] text-ink"
+                    >
+                      {r.originIata}→{r.destIata}
+                      <span className="text-ink-faint">{r.flights}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </Card>
+
           <Card className="lg:col-span-2">
             <Ranking airports={airports} onSelect={setSelected} />
           </Card>

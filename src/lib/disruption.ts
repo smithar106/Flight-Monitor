@@ -7,13 +7,12 @@ import type { StatusLevel } from "./types";
 //
 //   Component                       Weight  Derivation
 //   ------------------------------  ------  ---------------------------------
-//   Baseline delay rate             up to 35  baseline delay % (1 pt per 1%, saturates 35%)
-//   Baseline cancellation rate      up to 15  baseline cancel % × 6 (saturates 2.5%)
-//   Baseline average delay          up to 10  avg delay min ÷ 60 × 10 (saturates 60 min)
-//   Live delay deviation            up to 25  live delay % above baseline, scaled
-//   Live cancellations              up to 15  cancelled flights today (capped at 15)
+//   Baseline delay rate             up to 40  baseline delay % (1 pt per 1%, saturates 40%)
+//   Baseline cancellation rate      up to 20  baseline cancel % × 8 (saturates 2.5%)
+//   Baseline average delay          up to 15  avg delay min ÷ 60 × 15 (saturates 60 min)
+//   Live deviation                  up to 25  live delay % above baseline, scaled
 //
-// When live data is unavailable, the two live components are zero and the
+// When live data is unavailable, the live-deviation component is zero and the
 // score reflects historical (baseline) propensity only.
 //
 // All inputs are deterministic application metrics. The LLM never contributes
@@ -25,7 +24,6 @@ export interface DisruptionInput {
   baselineCanceledPct: number | null;
   baselineAvgDelayMin: number | null;
   liveDelayPct: number | null;
-  liveCanceledCount: number;
 }
 
 export interface DisruptionBreakdown {
@@ -33,7 +31,6 @@ export interface DisruptionBreakdown {
   baselineCancellation: number;
   baselineAvgDelay: number;
   liveDeviation: number;
-  liveCancellations: number;
 }
 
 export interface DisruptionResult {
@@ -68,31 +65,25 @@ export function computeDisruptionScore(input: DisruptionInput): DisruptionResult
   const canceledPct = input.baselineCanceledPct ?? 0;
   const avgDelayMin = input.baselineAvgDelayMin ?? 0;
 
-  const baselineDelay = clamp(delayPct, 0, 35);
-  const baselineCancellation = clamp(canceledPct * 6, 0, 15);
-  const baselineAvgDelay = clamp((avgDelayMin / 60) * 10, 0, 10);
+  const baselineDelay = clamp(delayPct, 0, 40);
+  const baselineCancellation = clamp(canceledPct * 8, 0, 20);
+  const baselineAvgDelay = clamp((avgDelayMin / 60) * 15, 0, 15);
 
   let liveDeviation = 0;
   if (input.liveDelayPct !== null) {
     const excess = Math.max(0, input.liveDelayPct - (input.baselineDelayPct ?? 0));
     liveDeviation = clamp(excess * 1.5, 0, 25);
   }
-  const liveCancellations = clamp(input.liveCanceledCount, 0, 15);
 
   const breakdown = {
     baselineDelay: round1(baselineDelay),
     baselineCancellation: round1(baselineCancellation),
     baselineAvgDelay: round1(baselineAvgDelay),
     liveDeviation: round1(liveDeviation),
-    liveCancellations: round1(liveCancellations),
   };
 
   const score = Math.round(
-    clamp(
-      baselineDelay + baselineCancellation + baselineAvgDelay + liveDeviation + liveCancellations,
-      0,
-      100
-    )
+    clamp(baselineDelay + baselineCancellation + baselineAvgDelay + liveDeviation, 0, 100)
   );
 
   return {
@@ -129,11 +120,6 @@ function buildFactors(
     } else {
       factors.push(`Live delay rate (${fmt(input.liveDelayPct)}%) is near historical normal`);
     }
-  }
-  if (input.liveCanceledCount > 0) {
-    factors.push(
-      `${input.liveCanceledCount} flight${input.liveCanceledCount === 1 ? "" : "s"} canceled today (${fmt(b.liveCancellations)} pts)`
-    );
   }
   if (factors.length === 0) {
     factors.push("No component is materially above typical levels");

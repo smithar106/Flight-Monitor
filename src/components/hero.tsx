@@ -87,15 +87,7 @@ export function Hero({
             label="Delayed"
             sub={<Delta value={overview.delayDeltaPct} />}
           />
-          <Metric
-            value={fmtInt(overview.canceledToday)}
-            label="Canceled today"
-            sub={
-              overview.canceledPctBaseline !== null
-                ? `${fmtPct(overview.canceledPctBaseline)} baseline`
-                : undefined
-            }
-          />
+          <Metric label="Canceled (baseline)" value={fmtPct(overview.canceledPctBaseline)} />
           <Metric
             value={overview.avgDelayMin !== null ? `${overview.avgDelayMin} min` : "—"}
             label="Average delay"
@@ -110,7 +102,8 @@ export function Hero({
         <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-1 text-[0.75rem] text-ink-faint">
           {live ? (
             <span>
-              {liveSampleSize} flights · {liveCarriers} carriers · updated {fmtClock(updated)} UTC
+              Live sample · {liveSampleSize} flights across {liveCarriers} carriers · updated{" "}
+              {fmtClock(updated)} UTC
             </span>
           ) : (
             <span className="text-elevated">

@@ -20,7 +20,7 @@ const SCORE_ROWS = [
   ["Baseline delay rate", "up to 40", "Baseline delay % (1 point per 1%, saturates at 40%)"],
   ["Baseline cancellation rate", "up to 20", "Baseline cancellation % × 8 (saturates at 2.5%)"],
   ["Baseline average delay", "up to 15", "Average delay minutes ÷ 60 × 15 (saturates at 60 min)"],
-  ["Live deviation", "up to 25", "Live delay/cancellation above baseline, scaled"],
+  ["Live deviation", "up to 25", "Live delay % above baseline, scaled"],
 ];
 
 export default function MethodologyPage() {
@@ -87,9 +87,9 @@ export default function MethodologyPage() {
         <p className="mt-4 text-[0.8125rem] leading-relaxed text-ink-faint">
           The score is computed in code and is fully reproducible. The AI layer only explains
           the numbers — it never contributes to or alters them. The "live deviation" component
-          compares each airport's current (live) delay and cancellation rates against its own
-          historical baseline; a live rate at or below baseline contributes nothing, while a
-          live rate materially above baseline raises the score.
+          compares each airport's current (live) delay rate against its own historical baseline;
+          a live rate at or below baseline contributes nothing, while a live rate materially
+          above baseline raises the score.
         </p>
       </Card>
 
@@ -115,10 +115,12 @@ export default function MethodologyPage() {
         <SectionHeading eyebrow="Sources" title="Data sources & freshness" />
         <div className="divide-y divide-line">
           <Term title="Live flight status — AviationStack">
-            Real-time per-flight status and delay data for a bounded sample of major U.S.
-            carriers. This powers live on-time/delay/cancellation rates and flights-tracked
-            counts. Results are cached, and the number of upstream requests is budgeted to
-            respect the API plan's monthly limit.
+            Real-time per-flight delay data for a small, clearly-labeled sample: the four largest
+            U.S. carriers (United, American, Delta, Southwest), active flights only. This powers
+            live on-time/delay rates and flights-tracked counts. To stay within the free plan's
+            monthly request quota, the sample is refreshed about once a day and the number of
+            upstream requests is persisted and budgeted; when the budget is exhausted the
+            interface says so instead of fabricating a live figure.
           </Term>
           <Term title="Historical performance — U.S. BTS">
             The Bureau of Transportation Statistics On-Time Performance data provides the
@@ -136,7 +138,8 @@ export default function MethodologyPage() {
       <Card className="mt-6 p-6">
         <SectionHeading eyebrow="Limits" title="Known limitations" />
         <ul className="space-y-2 text-[0.875rem] leading-relaxed text-ink-muted">
-          <li className="flex gap-2"><span className="text-ink-faint">·</span>Live coverage is a bounded sample of major carriers (limited by the API plan's monthly request quota), not every U.S. flight.</li>
+          <li className="flex gap-2"><span className="text-ink-faint">·</span>Live coverage is a daily snapshot of four major carriers' active flights — a sample, not every U.S. flight.</li>
+          <li className="flex gap-2"><span className="text-ink-faint">·</span>Cancellation figures are historical baselines only; the live sample contains active flights, which are by definition not yet canceled.</li>
           <li className="flex gap-2"><span className="text-ink-faint">·</span>Live delay is measured by current departure/arrival delay (≥ 15 min) on in-flight flights; airports with too few sampled flights report no live percentage.</li>
           <li className="flex gap-2"><span className="text-ink-faint">·</span>Airline attribution uses the operating carrier; a small number of codeshare/regional flights may be misattributed.</li>
           <li className="flex gap-2"><span className="text-ink-faint">·</span>Trend (improving/worsening) requires recent historical data and is unavailable with the sample baseline.</li>

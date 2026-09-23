@@ -37,7 +37,7 @@ function buildFacts(ctx: Context): string {
       (a) =>
         `${a.airport.iata} (${a.airport.city}): score ${a.disruptionScore}/100 ${a.status}, ` +
         `live delay ${fmtPct(a.metrics.delayPct)} (baseline ${fmtPct(a.baseline?.delayPct ?? null)}), ` +
-        `${a.metrics.canceledToday} canceled today, ${a.metrics.flightsTracked} flights tracked`
+        `${a.metrics.flightsTracked} flights tracked`
     )
     .join("\n");
 
@@ -53,7 +53,8 @@ function buildFacts(ctx: Context): string {
   return [
     `National status: ${o.statusLabel.toUpperCase()} (${o.status}).`,
     `Live sample: ${o.flightsTracked} flights tracked across major U.S. carriers.`,
-    `Live performance: on-time ${fmtPct(o.onTimePct)}, delayed ${fmtPct(o.delayPct)}${fmtDelta(o.delayDeltaPct)}, ${o.canceledToday} canceled today, average delay ${o.avgDelayMin ?? "n/a"} min.`,
+    `Live performance: on-time ${fmtPct(o.onTimePct)}, delayed ${fmtPct(o.delayPct)}${fmtDelta(o.delayDeltaPct)}, average delay ${o.avgDelayMin ?? "n/a"} min.`,
+    `Historical cancellation rate: ${fmtPct(o.canceledPctBaseline)} (baseline).`,
     `Airports elevated: ${o.airportsElevated}, high: ${o.airportsHigh}, severe: ${o.airportsSevere} (of ${o.totalAirports} tracked).`,
     ``,
     `Most disrupted airports (by disruption score):`,
@@ -93,7 +94,7 @@ function templateBody(ctx: Context): string {
   );
   if (o.delayPct !== null) {
     parts.push(
-      `Live delay is ${fmtPct(o.delayPct)}${fmtDelta(o.delayDeltaPct)} with ${o.canceledToday} cancellations today.`
+      `Live delay is ${fmtPct(o.delayPct)}${fmtDelta(o.delayDeltaPct)}.`
     );
   }
   if (worst) {
@@ -124,7 +125,7 @@ export async function buildOperationsBrief(ctx: Context): Promise<OperationsBrie
     ref("Flights tracked (live)", String(ctx.overview.flightsTracked)),
     ref("Delayed (live)", fmtPct(ctx.overview.delayPct)),
     ref("vs baseline", ctx.overview.delayDeltaPct === null ? "n/a" : `${ctx.overview.delayDeltaPct >= 0 ? "+" : ""}${ctx.overview.delayDeltaPct} pts`),
-    ref("Canceled today", String(ctx.overview.canceledToday)),
+    ref("Canceled (baseline)", fmtPct(ctx.overview.canceledPctBaseline)),
     ref("Baseline source", `${ctx.baselineSource} — ${ctx.baselinePeriod}`),
   ];
 

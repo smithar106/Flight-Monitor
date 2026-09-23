@@ -3,6 +3,7 @@ import {
   buildAllAirports,
   buildNationalOverview,
   buildAirlinePerformance,
+  buildRoutes,
   MIN_SAMPLE,
 } from "./analytics";
 import type { FlightRecord } from "./aviationstack";
@@ -79,5 +80,19 @@ describe("analytics", () => {
     const list = buildAirlinePerformance([], false);
     expect(list).toHaveLength(12);
     expect(list[0].airline.name).toBeTruthy();
+  });
+
+  it("aggregates busiest routes from flight records", () => {
+    const records = [
+      flight({ originIata: "ORD", destIata: "JFK" }),
+      flight({ originIata: "ORD", destIata: "JFK" }),
+      flight({ originIata: "ORD", destIata: "JFK" }),
+      flight({ originIata: "ATL", destIata: "LAX" }),
+    ];
+    const routes = buildRoutes(records);
+    expect(routes.length).toBeGreaterThan(0);
+    expect(routes[0].originIata).toBe("ORD");
+    expect(routes[0].destIata).toBe("JFK");
+    expect(routes[0].flights).toBe(3);
   });
 });

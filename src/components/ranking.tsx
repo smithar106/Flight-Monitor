@@ -47,8 +47,7 @@ export function Ranking({
                     ({a.deltaDelayPct >= 0 ? "+" : ""}
                     {a.deltaDelayPct} vs baseline)
                   </span>
-                ) : null}{" "}
-                · {a.metrics.canceledToday} canceled
+                ) : null}
               </div>
             </div>
             <div className="text-right">

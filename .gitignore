@@ -8,6 +8,7 @@ next-env.d.ts
 npm-debug.log*
 .DS_Store
 data/raw/
+data/.aviationstack-usage.json
 *.log
 
 # playwright-cli artifacts

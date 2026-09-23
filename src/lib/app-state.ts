@@ -7,18 +7,21 @@ import {
   buildAllAirports,
   buildNationalOverview,
   buildAirlinePerformance,
+  buildRoutes,
   dataContext,
 } from "./analytics";
 import type {
   AirportPerformance,
   AirlinePerformance,
   NationalOverview,
+  Route,
 } from "./types";
 
 export interface AppContext {
   overview: NationalOverview;
   airports: AirportPerformance[];
   airlines: AirlinePerformance[];
+  routes: Route[];
   baselineSource: string;
   baselinePeriod: string;
   live: boolean;
@@ -40,12 +43,14 @@ export async function getAppContext(): Promise<AppContext> {
     live.updatedAt
   );
   const airlines = buildAirlinePerformance(live.records, live.live);
+  const routes = buildRoutes(live.records);
   const ctx = dataContext();
 
   return {
     overview,
     airports,
     airlines,
+    routes,
     baselineSource: ctx.baselineSource,
     baselinePeriod: ctx.baselinePeriod,
     live: live.live,

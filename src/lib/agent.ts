@@ -70,7 +70,7 @@ function buildEvidenceCard(
       { label: "Flights tracked (live)", value: String(a.metrics.flightsTracked) },
       { label: "Delay rate (live)", value: fmtPct(a.metrics.delayPct) },
       { label: "vs baseline", value: fmtDelta(a.deltaDelayPct) },
-      { label: "Canceled today", value: String(a.metrics.canceledToday) },
+      { label: "Cancellation (baseline)", value: fmtPct(a.baseline?.canceledPct ?? null) },
       { label: "Average delay (live)", value: a.metrics.avgDelayMin != null ? `${a.metrics.avgDelayMin} min` : "n/a" },
     ];
     const reasons = a.factors.join("; ").toLowerCase();
@@ -88,7 +88,6 @@ function buildEvidenceCard(
       { label: "Flights tracked (live)", value: String(airline.flightsTracked) },
       { label: "Delay rate (live)", value: fmtPct(airline.delayPct) },
       { label: "vs baseline", value: fmtDelta(airline.deltaDelayPct) },
-      { label: "Canceled today", value: String(airline.canceledToday) },
     ];
     const band =
       airline.band === "outperforming"
@@ -106,16 +105,16 @@ function buildEvidenceCard(
   // --- Cancellation concentration --------------------------------------
   if (/\bcancel/.test(q)) {
     const ranked = [...ctx.airports].sort(
-      (a, b) => b.metrics.canceledToday - a.metrics.canceledToday
+      (a, b) => (b.baseline?.canceledPct ?? 0) - (a.baseline?.canceledPct ?? 0)
     );
     const top = ranked.slice(0, 5);
     const facts: AskEvidence[] = top.map((a) => ({
       label: a.airport.iata,
-      value: `${a.metrics.canceledToday} canceled today`,
+      value: `${fmtPct(a.baseline?.canceledPct ?? null)} canceled (baseline)`,
     }));
     const narrative =
-      `Cancellations today are most concentrated at ${top.map((a) => a.airport.iata).join(", ")}. ` +
-      `${top[0]?.airport.iata} has the most with ${top[0]?.metrics.canceledToday} flights canceled today.`;
+      `Historical cancellations are most concentrated at ${top.map((a) => a.airport.iata).join(", ")}. ` +
+      `${top[0]?.airport.iata} has the highest baseline cancellation rate at ${fmtPct(top[0]?.baseline?.canceledPct ?? null)}.`;
     return { title: "Where cancellations are concentrated", facts, narrative };
   }
 
@@ -174,14 +173,14 @@ function buildEvidenceCard(
     { label: "Status", value: o.statusLabel },
     { label: "Flights tracked (live)", value: String(o.flightsTracked) },
     { label: "Delayed (live)", value: fmtPct(o.delayPct) },
-    { label: "Canceled today", value: String(o.canceledToday) },
+    { label: "Canceled (baseline)", value: fmtPct(o.canceledPctBaseline) },
     { label: "Airports elevated/high/severe", value: `${o.airportsElevated} / ${o.airportsHigh} / ${o.airportsSevere}` },
   ];
   const worst = ctx.airports[0];
   const narrative =
     `U.S. aviation is ${o.statusLabel.toLowerCase()} with ${o.flightsTracked} flights tracked live. ` +
     `The most disrupted airport is ${worst?.airport.iata} at ${worst?.disruptionScore}/100. ` +
-    `Live delay is ${fmtPct(o.delayPct)} with ${o.canceledToday} cancellations today.`;
+    `Live delay is ${fmtPct(o.delayPct)}.`;
   return { title: "National operations snapshot", facts, narrative };
 }
 

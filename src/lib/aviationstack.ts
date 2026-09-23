@@ -1,7 +1,11 @@
-// AviationStack live flight client. Returns real per-flight status/delay data
-// for a bounded sample of major U.S. carriers, with caching and a monthly
-// request-budget guard (the free tier is 100 requests/month).
+// AviationStack live flight client. Returns real per-flight delay/status data
+// for a small sample of major U.S. carriers, with caching, a persistent monthly
+// request budget, and rate-limit backoff. The free tier is 100 requests/month,
+// so the default is intentionally lean: four carriers, active-only, refreshed
+// about once a day.
 
+import fs from "fs";
+import path from "path";
 import { AIRLINES } from "./airlines";
 
 const BASE = "https://api.aviationstack.com/v1/flights";
@@ -44,7 +48,10 @@ interface RawFlight {
   };
 }
 
-const DEFAULT_CARRIERS = ["UA", "AA", "DL", "WN", "B6", "AS", "NK", "F9"];
+const DEFAULT_CARRIERS = ["UA", "AA", "DL", "WN"];
+
+// Persistent budget file (survives restarts within a deployment).
+const USAGE_FILE = path.join(process.cwd(), "data", ".aviationstack-usage.json");
 
 function key(): string | null {
   return process.env.AVIATIONSTACK_API_KEY ?? null;
@@ -63,18 +70,37 @@ function carriers(): string[] {
 }
 
 function maxRequestsPerMonth(): number {
-  const n = parseInt(process.env.AVIATIONSTACK_MAX_REQUESTS ?? "80", 10);
-  return Number.isFinite(n) && n > 0 ? n : 80;
+  const n = parseInt(process.env.AVIATIONSTACK_MAX_REQUESTS ?? "90", 10);
+  return Number.isFinite(n) && n > 0 ? n : 90;
 }
 
 function ttlMs(): number {
-  const n = parseInt(process.env.AVIATIONSTACK_TTL_MS ?? String(10 * 60 * 1000), 10);
-  return Number.isFinite(n) && n > 0 ? n : 10 * 60 * 1000;
+  const n = parseInt(
+    process.env.AVIATIONSTACK_TTL_MS ?? String(24 * 60 * 60 * 1000),
+    10
+  );
+  return Number.isFinite(n) && n > 0 ? n : 24 * 60 * 60 * 1000;
 }
 
-// In-memory budget counter (resets monthly by keying on the current month).
-let budgetMonth = "";
-let budgetUsed = 0;
+function readUsage(): { month: string; used: number } {
+  try {
+    const raw = fs.readFileSync(USAGE_FILE, "utf-8");
+    const parsed = JSON.parse(raw) as { month?: string; used?: number };
+    return { month: parsed.month ?? "", used: parsed.used ?? 0 };
+  } catch {
+    return { month: "", used: 0 };
+  }
+}
+
+function writeUsage(usage: { month: string; used: number }): void {
+  try {
+    fs.mkdirSync(path.dirname(USAGE_FILE), { recursive: true });
+    fs.writeFileSync(USAGE_FILE, JSON.stringify(usage));
+  } catch {
+    /* best-effort */
+  }
+}
+
 let cache: { at: number; data: LiveFlightsResult } | null = null;
 
 function normalizeStatus(s: string | undefined): FlightStatus {
@@ -121,10 +147,10 @@ function normalize(raw: RawFlight[]): FlightRecord[] {
   return records;
 }
 
-async function fetchCarrier(carrierIata: string, status: string): Promise<RawFlight[]> {
+async function fetchCarrierActive(carrierIata: string): Promise<RawFlight[]> {
   const params = new URLSearchParams({
     access_key: key()!,
-    flight_status: status,
+    flight_status: "active",
     airline_iata: carrierIata,
     limit: "100",
   });
@@ -180,44 +206,39 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
   }
 
   const month = new Date().toISOString().slice(0, 7);
-  if (month !== budgetMonth) {
-    budgetMonth = month;
-    budgetUsed = 0;
-  }
+  let usage = readUsage();
+  if (usage.month !== month) usage = { month, used: 0 };
 
   if (cache && Date.now() - cache.at < ttlMs()) {
     return cache.data;
   }
 
-  const needed = carriers().length * 2; // active + cancelled per carrier
-  if (budgetUsed + needed > maxRequestsPerMonth()) {
+  const needed = carriers().length;
+  if (usage.used + needed > maxRequestsPerMonth()) {
     return {
       records: cache?.data.records ?? [],
       live: false,
-      reason: "Monthly request budget reached — live data paused",
+      reason: "Monthly request budget reached — live data paused until next month",
       updatedAt: cache?.at ?? Date.now(),
-      requestCount: budgetUsed,
+      requestCount: usage.used,
     };
   }
 
   try {
-    const tasks: string[] = [];
-    for (const c of carriers()) {
-      tasks.push(`${c}|active`, `${c}|cancelled`);
-    }
     const all: RawFlight[] = [];
-    await mapWithConcurrency(tasks, 2, async (task) => {
-      const [c, status] = task.split("|");
-      const batch = await fetchCarrier(c, status);
-      budgetUsed += 1;
+    for (const c of carriers()) {
+      const batch = await fetchCarrierActive(c);
+      usage.used += 1;
       all.push(...batch);
-    });
+    }
+    writeUsage(usage);
+
     const result: LiveFlightsResult = {
       records: normalize(all),
       live: true,
       reason: null,
       updatedAt: Date.now(),
-      requestCount: budgetUsed,
+      requestCount: usage.used,
     };
     cache = { at: Date.now(), data: result };
     return result;
@@ -227,27 +248,11 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
       live: false,
       reason: e instanceof Error ? e.message : "AviationStack unavailable",
       updatedAt: cache?.at ?? Date.now(),
-      requestCount: budgetUsed,
+      requestCount: usage.used,
     };
   }
 }
 
-async function mapWithConcurrency<T>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T) => Promise<void>
-): Promise<void> {
-  let index = 0;
-  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-    while (index < items.length) {
-      const i = index++;
-      await fn(items[i]);
-    }
-  });
-  await Promise.all(workers);
-}
-
-// Keep AIRLINES import used (carrier list is validated against known airlines).
 export const TRACKED_CARRIERS = AIRLINES.filter((a) =>
   carriers().includes(a.iata)
 );

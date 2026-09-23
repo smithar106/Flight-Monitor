@@ -14,6 +14,7 @@ import type {
   AirlineExposure,
   AirportMetrics,
   NationalOverview,
+  Route,
   StatusLevel,
   Trend,
 } from "./types";
@@ -40,27 +41,14 @@ interface Agg {
   delayed: number;
   unknown: number;
   delaySum: number;
-  canceled: number;
   airlines: Map<string, Agg>;
 }
 
 function newAgg(): Agg {
-  return {
-    active: 0,
-    onTime: 0,
-    delayed: 0,
-    unknown: 0,
-    delaySum: 0,
-    canceled: 0,
-    airlines: new Map(),
-  };
+  return { active: 0, onTime: 0, delayed: 0, unknown: 0, delaySum: 0, airlines: new Map() };
 }
 
 function addTo(agg: Agg, record: FlightRecord): void {
-  if (record.status === "cancelled") {
-    agg.canceled += 1;
-    return;
-  }
   agg.active += 1;
   const c = classifyActive(record);
   if (c === "ontime") {
@@ -79,20 +67,18 @@ function metricsFromAgg(agg: Agg): AirportMetrics {
   const live = perf >= MIN_SAMPLE;
   if (!live) {
     return {
-      flightsTracked: agg.active + agg.canceled,
+      flightsTracked: agg.active,
       onTimePct: null,
       delayPct: null,
       avgDelayMin: null,
-      canceledToday: agg.canceled,
       live: false,
     };
   }
   return {
-    flightsTracked: agg.active + agg.canceled,
+    flightsTracked: agg.active,
     onTimePct: r1((agg.onTime / perf) * 100),
     delayPct: r1((agg.delayed / perf) * 100),
     avgDelayMin: agg.delayed ? Math.round(agg.delaySum / agg.delayed) : 0,
-    canceledToday: agg.canceled,
     live: true,
   };
 }
@@ -162,11 +148,7 @@ function buildTopAirlines(agg: Agg | undefined): AirlineExposure[] {
     const airline = AIRLINES.find((x) => x.iata === iata);
     if (!airline) continue;
     const m = metricsFromAgg(a);
-    exposure.push({
-      airline,
-      delayPct: m.delayPct,
-      flights: a.active + a.canceled,
-    });
+    exposure.push({ airline, delayPct: m.delayPct, flights: a.active });
   }
   return exposure.sort((a, b) => b.flights - a.flights).slice(0, 6);
 }
@@ -184,7 +166,6 @@ function buildAirportPerformance(
     baselineCanceledPct: baseline?.canceledPct ?? null,
     baselineAvgDelayMin: baseline?.avgDelayMin ?? null,
     liveDelayPct: metrics.live ? metrics.delayPct : null,
-    liveCanceledCount: metrics.canceledToday,
   });
 
   const trend: Trend = "unknown";
@@ -211,6 +192,38 @@ export function buildAllAirports(records: FlightRecord[]): AirportPerformance[] 
   return AIRPORTS.map((a) => buildAirportPerformance(airports.get(a.iata), a.iata)).sort(
     (a, b) => b.disruptionScore - a.disruptionScore
   );
+}
+
+// Busiest origin→destination corridors in the live sample, for the routes view.
+export function buildRoutes(records: FlightRecord[], limit = 25): Route[] {
+  const map = new Map<string, { flights: number; delayed: number; perf: number }>();
+  for (const r of records) {
+    if (!r.originIata || !r.destIata) continue;
+    if (r.originIata === r.destIata) continue;
+    const key = `${r.originIata}|${r.destIata}`;
+    let e = map.get(key);
+    if (!e) {
+      e = { flights: 0, delayed: 0, perf: 0 };
+      map.set(key, e);
+    }
+    e.flights += 1;
+    const c = classifyActive(r);
+    if (c === "delayed") {
+      e.delayed += 1;
+      e.perf += 1;
+    } else if (c === "ontime") {
+      e.perf += 1;
+    }
+  }
+
+  const routes: Route[] = [];
+  for (const [key, e] of map) {
+    if (e.flights < 2) continue;
+    const [originIata, destIata] = key.split("|");
+    const delayPct = e.perf >= 5 ? r1((e.delayed / e.perf) * 100) : null;
+    routes.push({ originIata, destIata, flights: e.flights, delayPct });
+  }
+  return routes.sort((a, b) => b.flights - a.flights).slice(0, limit);
 }
 
 function nationalStatusLabel(status: StatusLevel): string {
@@ -252,11 +265,7 @@ function nationalBaseline(
     delayMinSum += b.avgDelayMin * b.sampleSize;
   }
   if (!w) return null;
-  return {
-    delayPct: delaySum / w,
-    canceledPct: cancelSum / w,
-    avgDelayMin: delayMinSum / w,
-  };
+  return { delayPct: delaySum / w, canceledPct: cancelSum / w, avgDelayMin: delayMinSum / w };
 }
 
 export function buildNationalOverview(
@@ -281,7 +290,6 @@ export function buildNationalOverview(
     onTimePct: m.onTimePct,
     delayPct: m.delayPct,
     avgDelayMin: m.avgDelayMin,
-    canceledToday: m.canceledToday,
     canceledPctBaseline: base ? r1(base.canceledPct) : null,
     delayDeltaPct,
     airportsElevated: airports.filter((a) => a.status === "elevated").length,
@@ -335,7 +343,6 @@ export function buildAirlinePerformance(
       onTimePct: m.onTimePct,
       delayPct: m.delayPct,
       avgDelayMin: m.avgDelayMin,
-      canceledToday: m.canceledToday,
       baselineDelayPct: baseline?.delayPct ?? null,
       deltaDelayPct,
       live: m.live,
@@ -352,10 +359,7 @@ export function dataContext(): {
   baselineSource: string;
   baselinePeriod: string;
 } {
-  return {
-    baselineSource: baselineSourceLabel(),
-    baselinePeriod: baselinePeriodLabel(),
-  };
+  return { baselineSource: baselineSourceLabel(), baselinePeriod: baselinePeriodLabel() };
 }
 
 export { statusLabel };
