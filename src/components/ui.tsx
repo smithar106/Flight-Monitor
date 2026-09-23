@@ -86,12 +86,6 @@ export function ScoreBadge({
   );
 }
 
-export function Dot({ status }: { status: StatusLevel }) {
-  return (
-    <span className={`inline-block h-2 w-2 rounded-full ${STATUS_META[status].dot}`} />
-  );
-}
-
 export function Metric({
   value,
   label,

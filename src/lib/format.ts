@@ -33,13 +33,6 @@ export function fmtDate(date: Date): string {
   });
 }
 
-export function fmtUpdated(iso: string | null | undefined): string {
-  if (!iso) return "unknown";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "unknown";
-  return `${fmtDate(d)} · ${fmtClock(d)} UTC`;
-}
-
 export const STATUS_META: Record<
   StatusLevel,
   { label: string; text: string; dot: string; bg: string; border: string; hex: string }
