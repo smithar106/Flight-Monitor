@@ -40,7 +40,6 @@ export function AirportDrawer({
 
   if (!airport) return null;
   const a = airport;
-  const vol = a.metrics.volumeRatio;
 
   return (
     <div className="fixed inset-0 z-50">
@@ -89,17 +88,28 @@ export function AirportDrawer({
               Live
             </h3>
             <div className="mt-1 divide-y divide-line">
-              <Row label="Aircraft in terminal airspace" value={fmtInt(a.metrics.liveVolume)} />
+              <Row label="Flights tracked" value={fmtInt(a.metrics.flightsTracked)} />
+              <Row label="On-time" value={fmtPct(a.metrics.onTimePct)} />
               <Row
-                label="Typical this hour"
-                value={a.metrics.expectedVolume ? `~${fmtInt(a.metrics.expectedVolume)}` : "—"}
+                label="Delayed"
+                value={fmtPct(a.metrics.delayPct)}
+                sub={
+                  a.deltaDelayPct !== null
+                    ? `${a.deltaDelayPct >= 0 ? "+" : ""}${a.deltaDelayPct} pts vs baseline`
+                    : undefined
+                }
               />
+              <Row label="Canceled today" value={fmtInt(a.metrics.canceledToday)} />
               <Row
-                label="Traffic vs typical"
-                value={vol ? `${Math.round(vol * 100)}%` : "—"}
-                sub={vol !== null && vol < 0.85 ? "reduced" : undefined}
+                label="Average delay"
+                value={a.metrics.avgDelayMin !== null ? `${a.metrics.avgDelayMin} min` : "—"}
               />
             </div>
+            {!a.metrics.live && (
+              <p className="mt-2 text-[0.6875rem] text-ink-faint">
+                Live sample too small to report percentages for this airport.
+              </p>
+            )}
           </div>
 
           <div className="mt-6">
@@ -107,12 +117,12 @@ export function AirportDrawer({
               Historical baseline
             </h3>
             <div className="mt-1 divide-y divide-line">
-              <Row label="On-time" value={fmtPct(a.metrics.onTimePct)} />
-              <Row label="Delayed" value={fmtPct(a.metrics.delayPct)} />
-              <Row label="Canceled" value={fmtPct(a.metrics.canceledPct)} />
+              <Row label="On-time" value={fmtPct(a.baseline?.onTimePct ?? null)} />
+              <Row label="Delayed" value={fmtPct(a.baseline?.delayPct ?? null)} />
+              <Row label="Canceled" value={fmtPct(a.baseline?.canceledPct ?? null)} />
               <Row
                 label="Average delay"
-                value={a.metrics.avgDelayMin !== null ? `${a.metrics.avgDelayMin} min` : "—"}
+                value={a.baseline?.avgDelayMin != null ? `${a.baseline.avgDelayMin} min` : "—"}
               />
             </div>
             <p className="mt-2 text-[0.6875rem] text-ink-faint">

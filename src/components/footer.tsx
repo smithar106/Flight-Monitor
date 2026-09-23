@@ -7,9 +7,9 @@ export function Footer() {
         <div>
           <div className="text-ink-muted">Flight Pulse</div>
           <p className="mt-1 max-w-md text-[0.8125rem] leading-relaxed">
-            U.S. flight operations intelligence. Live air-traffic data via the
-            OpenSky Network; historical performance baselines via the U.S.
-            Bureau of Transportation Statistics.
+            U.S. flight operations intelligence. Live flight status via
+            AviationStack; historical performance baselines via the U.S. Bureau
+            of Transportation Statistics.
           </p>
         </div>
         <div className="flex gap-8 text-[0.8125rem]">
@@ -23,12 +23,12 @@ export function Footer() {
               </li>
               <li>
                 <a
-                  href="https://opensky-network.org"
+                  href="https://aviationstack.com"
                   target="_blank"
                   rel="noreferrer"
                   className="hover:text-ink"
                 >
-                  OpenSky Network
+                  AviationStack
                 </a>
               </li>
               <li>

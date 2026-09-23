@@ -36,7 +36,19 @@ export function Ranking({
                 </span>
               </div>
               <div className="mt-0.5 text-[0.6875rem] text-ink-faint">
-                {fmtPct(a.metrics.delayPct)} delayed · {fmtPct(a.metrics.canceledPct)} canceled
+                {fmtPct(a.metrics.delayPct)} delayed
+                {a.deltaDelayPct !== null ? (
+                  <span
+                    className={
+                      a.deltaDelayPct >= 0 ? " text-severe" : " text-normal"
+                    }
+                  >
+                    {" "}
+                    ({a.deltaDelayPct >= 0 ? "+" : ""}
+                    {a.deltaDelayPct} vs base)
+                  </span>
+                ) : null}{" "}
+                · {a.metrics.canceledToday} canceled
               </div>
             </div>
             <div className="text-right">
@@ -44,7 +56,7 @@ export function Ranking({
                 {a.disruptionScore}
               </div>
               <div className="text-[0.625rem] text-ink-faint">
-                {fmtInt(a.metrics.liveVolume)} acft
+                {fmtInt(a.metrics.flightsTracked)} flights
               </div>
             </div>
             <StatusPill status={a.status} size="sm" />

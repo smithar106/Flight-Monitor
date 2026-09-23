@@ -5,30 +5,35 @@ import type { StatusLevel } from "./types";
 //
 // Methodology (documented in /methodology and in the UI):
 //
-//   Component                  Weight  Derivation
-//   -------------------------  ------  ---------------------------------------
-//   Delay rate                 up to 40  baseline delay % (1 point per 1% up to 40%)
-//   Cancellation rate          up to 20  baseline cancel % × 8 (saturates at 2.5%)
-//   Average delay duration     up to 15  avg delay min / 60 × 15 (saturates at 60 min)
-//   Live traffic anomaly       up to 25  (1 − liveVolume/expected) / 0.5 × 25,
-//                                       zero when traffic is at/above expected
+//   Component                       Weight  Derivation
+//   ------------------------------  ------  ---------------------------------
+//   Baseline delay rate             up to 35  baseline delay % (1 pt per 1%, saturates 35%)
+//   Baseline cancellation rate      up to 15  baseline cancel % × 6 (saturates 2.5%)
+//   Baseline average delay          up to 10  avg delay min ÷ 60 × 10 (saturates 60 min)
+//   Live delay deviation            up to 25  live delay % above baseline, scaled
+//   Live cancellations              up to 15  cancelled flights today (capped at 15)
+//
+// When live data is unavailable, the two live components are zero and the
+// score reflects historical (baseline) propensity only.
 //
 // All inputs are deterministic application metrics. The LLM never contributes
 // to the score — it only explains the resulting numbers.
 // ---------------------------------------------------------------------------
 
 export interface DisruptionInput {
-  delayPct: number | null;
-  canceledPct: number | null;
-  avgDelayMin: number | null;
-  volumeRatio: number | null;
+  baselineDelayPct: number | null;
+  baselineCanceledPct: number | null;
+  baselineAvgDelayMin: number | null;
+  liveDelayPct: number | null;
+  liveCanceledCount: number;
 }
 
 export interface DisruptionBreakdown {
-  delay: number;
-  cancellation: number;
-  avgDelay: number;
-  anomaly: number;
+  baselineDelay: number;
+  baselineCancellation: number;
+  baselineAvgDelay: number;
+  liveDeviation: number;
+  liveCancellations: number;
 }
 
 export interface DisruptionResult {
@@ -59,29 +64,35 @@ export function statusLabel(status: StatusLevel): string {
 }
 
 export function computeDisruptionScore(input: DisruptionInput): DisruptionResult {
-  const delayPct = input.delayPct ?? 0;
-  const canceledPct = input.canceledPct ?? 0;
-  const avgDelayMin = input.avgDelayMin ?? 0;
+  const delayPct = input.baselineDelayPct ?? 0;
+  const canceledPct = input.baselineCanceledPct ?? 0;
+  const avgDelayMin = input.baselineAvgDelayMin ?? 0;
 
-  const delay = clamp(delayPct, 0, 40);
-  const cancellation = clamp(canceledPct * 8, 0, 20);
-  const avgDelay = clamp((avgDelayMin / 60) * 15, 0, 15);
+  const baselineDelay = clamp(delayPct, 0, 35);
+  const baselineCancellation = clamp(canceledPct * 6, 0, 15);
+  const baselineAvgDelay = clamp((avgDelayMin / 60) * 10, 0, 10);
 
-  let anomaly = 0;
-  if (input.volumeRatio !== null && input.volumeRatio >= 0) {
-    const shortfall = 1 - input.volumeRatio;
-    anomaly = clamp((shortfall / 0.5) * 25, 0, 25);
+  let liveDeviation = 0;
+  if (input.liveDelayPct !== null) {
+    const excess = Math.max(0, input.liveDelayPct - (input.baselineDelayPct ?? 0));
+    liveDeviation = clamp(excess * 1.5, 0, 25);
   }
+  const liveCancellations = clamp(input.liveCanceledCount, 0, 15);
 
   const breakdown = {
-    delay: round1(delay),
-    cancellation: round1(cancellation),
-    avgDelay: round1(avgDelay),
-    anomaly: round1(anomaly),
+    baselineDelay: round1(baselineDelay),
+    baselineCancellation: round1(baselineCancellation),
+    baselineAvgDelay: round1(baselineAvgDelay),
+    liveDeviation: round1(liveDeviation),
+    liveCancellations: round1(liveCancellations),
   };
 
   const score = Math.round(
-    clamp(delay + cancellation + avgDelay + anomaly, 0, 100)
+    clamp(
+      baselineDelay + baselineCancellation + baselineAvgDelay + liveDeviation + liveCancellations,
+      0,
+      100
+    )
   );
 
   return {
@@ -98,28 +109,34 @@ function buildFactors(
 ): string[] {
   const factors: string[] = [];
 
-  if (input.delayPct !== null && b.delay >= 12) {
+  if (input.baselineDelayPct !== null && b.baselineDelay >= 12) {
     factors.push(
-      `Delay rate of ${fmt(input.delayPct)}% is elevated (contributes ${fmt(b.delay)} pts)`
+      `Historical delay rate of ${fmt(input.baselineDelayPct)}% is elevated (${fmt(b.baselineDelay)} pts)`
     );
   }
-  if (input.canceledPct !== null && input.canceledPct >= 1.5) {
+  if (input.baselineCanceledPct !== null && input.baselineCanceledPct >= 1.5) {
     factors.push(
-      `Cancellation rate of ${fmt(input.canceledPct)}% (contributes ${fmt(b.cancellation)} pts)`
+      `Historical cancellation rate of ${fmt(input.baselineCanceledPct)}% (${fmt(b.baselineCancellation)} pts)`
     );
   }
-  if (input.avgDelayMin !== null && input.avgDelayMin >= 30) {
-    factors.push(
-      `Average delay of ${fmt(input.avgDelayMin)} min is above typical (contributes ${fmt(b.avgDelay)} pts)`
-    );
+  if (input.liveDelayPct !== null) {
+    const base = input.baselineDelayPct ?? 0;
+    const excess = input.liveDelayPct - base;
+    if (excess >= 5) {
+      factors.push(
+        `Live delay rate (${fmt(input.liveDelayPct)}%) is ${fmt(excess)} pts above historical normal (${fmt(b.liveDeviation)} pts)`
+      );
+    } else {
+      factors.push(`Live delay rate (${fmt(input.liveDelayPct)}%) is near historical normal`);
+    }
   }
-  if (input.volumeRatio !== null && input.volumeRatio < 0.85) {
+  if (input.liveCanceledCount > 0) {
     factors.push(
-      `Live traffic is ${fmt(input.volumeRatio * 100)}% of expected volume, suggesting a reduction in throughput`
+      `${input.liveCanceledCount} flight${input.liveCanceledCount === 1 ? "" : "s"} canceled today (${fmt(b.liveCancellations)} pts)`
     );
   }
   if (factors.length === 0) {
-    factors.push("No individual component is materially above typical levels");
+    factors.push("No component is materially above typical levels");
   }
   return factors;
 }

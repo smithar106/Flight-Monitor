@@ -70,16 +70,34 @@ export default function Page() {
     );
   }
 
-  const { overview, airports, airlines, baselineSource, live, error: dataError } = data;
+  const {
+    overview,
+    airports,
+    airlines,
+    baselineSource,
+    live,
+    liveReason,
+    liveUpdatedAt,
+    liveSampleSize,
+    liveCarriers,
+  } = data;
 
   return (
     <>
-      <Hero overview={overview} baselineSource={baselineSource} />
+      <Hero
+        overview={overview}
+        baselineSource={baselineSource}
+        live={live}
+        liveReason={liveReason}
+        liveUpdatedAt={liveUpdatedAt}
+        liveSampleSize={liveSampleSize}
+        liveCarriers={liveCarriers}
+      />
 
       {!live && (
         <div className="border-b border-elevated/30 bg-elevated-soft px-5 py-2 text-center text-xs text-elevated">
-          Live air-traffic data is temporarily unavailable{dataError ? ` (${dataError})` : ""}. Showing
-          historical baselines only.
+          Live flight-status data is unavailable{liveReason ? ` (${liveReason})` : ""}. Showing
+          historical baselines.
         </div>
       )}
 
@@ -112,7 +130,7 @@ export default function Page() {
             title="Airline performance"
             right={
               <span className="text-[0.6875rem] text-ink-faint">
-                Delay figures are historical baselines · click headers to sort
+                Delay figures are live · click headers to sort
               </span>
             }
           />

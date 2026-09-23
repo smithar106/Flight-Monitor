@@ -17,10 +17,10 @@ function Term({ title, children }: { title: string; children: React.ReactNode })
 }
 
 const SCORE_ROWS = [
-  ["Delay rate", "up to 40", "Baseline delay % (1 point per 1%, saturates at 40%)"],
-  ["Cancellation rate", "up to 20", "Baseline cancellation % × 8 (saturates at 2.5%)"],
-  ["Average delay duration", "up to 15", "Average delay minutes ÷ 60 × 15 (saturates at 60 min)"],
-  ["Live traffic anomaly", "up to 25", "(1 − live/expected) ÷ 0.5 × 25, zero when at/above expected"],
+  ["Baseline delay rate", "up to 40", "Baseline delay % (1 point per 1%, saturates at 40%)"],
+  ["Baseline cancellation rate", "up to 20", "Baseline cancellation % × 8 (saturates at 2.5%)"],
+  ["Baseline average delay", "up to 15", "Average delay minutes ÷ 60 × 15 (saturates at 60 min)"],
+  ["Live deviation", "up to 25", "Live delay/cancellation above baseline, scaled"],
 ];
 
 export default function MethodologyPage() {
@@ -31,7 +31,7 @@ export default function MethodologyPage() {
       </div>
       <h1 className="mt-2 text-title font-semibold tracking-tight text-ink">Methodology</h1>
       <p className="mt-3 text-lead text-ink-muted">
-        Flight Pulse distinguishes live traffic from historical performance and never
+        Flight Pulse distinguishes live flight status from historical performance and never
         presents one as the other. Here is exactly how each number is derived.
       </p>
 
@@ -86,12 +86,10 @@ export default function MethodologyPage() {
         </table>
         <p className="mt-4 text-[0.8125rem] leading-relaxed text-ink-faint">
           The score is computed in code and is fully reproducible. The AI layer only explains
-          the numbers — it never contributes to or alters them. The live traffic-anomaly
-          component attributes each low-altitude (below 15,000 ft) aircraft to its nearest
-          reference airport within 60 nm, then compares that instantaneous count to the
-          airport's expected hourly volume. The dwell-time constant (0.6, i.e. ~35 minutes) is
-          a modeling assumption calibrated so a typical airport at a typical hour yields a
-          ratio near 1.0.
+          the numbers — it never contributes to or alters them. The "live deviation" component
+          compares each airport's current (live) delay and cancellation rates against its own
+          historical baseline; a live rate at or below baseline contributes nothing, while a
+          live rate materially above baseline raises the score.
         </p>
       </Card>
 
@@ -116,10 +114,11 @@ export default function MethodologyPage() {
       <Card className="mt-6 p-6">
         <SectionHeading eyebrow="Sources" title="Data sources & freshness" />
         <div className="divide-y divide-line">
-          <Term title="Live air traffic — OpenSky Network">
-            Real-time aircraft positions (ADS-B) for the continental United States. This powers
-            flights-tracked counts and the live traffic-anomaly signal. Anonymous access is
-            rate-limited; results are cached to avoid excess requests.
+          <Term title="Live flight status — AviationStack">
+            Real-time per-flight status and delay data for a bounded sample of major U.S.
+            carriers. This powers live on-time/delay/cancellation rates and flights-tracked
+            counts. Results are cached, and the number of upstream requests is budgeted to
+            respect the API plan's monthly limit.
           </Term>
           <Term title="Historical performance — U.S. BTS">
             The Bureau of Transportation Statistics On-Time Performance data provides the
@@ -137,9 +136,9 @@ export default function MethodologyPage() {
       <Card className="mt-6 p-6">
         <SectionHeading eyebrow="Limits" title="Known limitations" />
         <ul className="space-y-2 text-[0.875rem] leading-relaxed text-ink-muted">
-          <li className="flex gap-2"><span className="text-ink-faint">·</span>Live per-flight delay and cancellation status is not available from the current free data sources; these figures are historical baselines.</li>
-          <li className="flex gap-2"><span className="text-ink-faint">·</span>Live coverage is continental U.S.; Alaska and Hawaii are not in the live state snapshot.</li>
-          <li className="flex gap-2"><span className="text-ink-faint">·</span>Airline attribution from ADS-B callsigns is approximate (unassigned or non-ICAO callsigns are omitted).</li>
+          <li className="flex gap-2"><span className="text-ink-faint">·</span>Live coverage is a bounded sample of major carriers (limited by the API plan's monthly request quota), not every U.S. flight.</li>
+          <li className="flex gap-2"><span className="text-ink-faint">·</span>Live delay is measured by current departure/arrival delay (≥ 15 min) on in-flight flights; airports with too few sampled flights report no live percentage.</li>
+          <li className="flex gap-2"><span className="text-ink-faint">·</span>Airline attribution uses the operating carrier; a small number of codeshare/regional flights may be misattributed.</li>
           <li className="flex gap-2"><span className="text-ink-faint">·</span>Trend (improving/worsening) requires recent historical data and is unavailable with the sample baseline.</li>
         </ul>
       </Card>

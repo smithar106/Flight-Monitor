@@ -1,10 +1,14 @@
 import {
+  getLiveFlights,
+  TRACKED_CARRIERS,
+  liveFlightsAvailable,
+} from "./aviationstack";
+import {
   buildAllAirports,
   buildNationalOverview,
   buildAirlinePerformance,
   dataContext,
 } from "./analytics";
-import { fetchUsStates, type OpenSkyStates } from "./opensky";
 import type {
   AirportPerformance,
   AirlinePerformance,
@@ -18,29 +22,24 @@ export interface AppContext {
   baselineSource: string;
   baselinePeriod: string;
   live: boolean;
+  liveReason: string | null;
+  liveUpdatedAt: string | null;
+  liveSampleSize: number;
+  liveCarriers: number;
   error: string | null;
 }
 
-function emptyStates(): OpenSkyStates {
-  return { time: Math.floor(Date.now() / 1000), states: [] };
-}
-
 export async function getAppContext(): Promise<AppContext> {
-  let states: OpenSkyStates;
-  let live = true;
-  let error: string | null = null;
-  try {
-    states = await fetchUsStates();
-  } catch (e) {
-    states = emptyStates();
-    live = false;
-    error = e instanceof Error ? e.message : "OpenSky unavailable";
-  }
+  const live = await getLiveFlights();
 
-  const now = new Date();
-  const airports = buildAllAirports(states, now);
-  const overview = buildNationalOverview(states, airports, now);
-  const airlines = buildAirlinePerformance(states);
+  const airports = buildAllAirports(live.records);
+  const overview = buildNationalOverview(
+    live.records,
+    airports,
+    live.live,
+    live.updatedAt
+  );
+  const airlines = buildAirlinePerformance(live.records, live.live);
   const ctx = dataContext();
 
   return {
@@ -49,7 +48,11 @@ export async function getAppContext(): Promise<AppContext> {
     airlines,
     baselineSource: ctx.baselineSource,
     baselinePeriod: ctx.baselinePeriod,
-    live,
-    error,
+    live: live.live,
+    liveReason: live.reason,
+    liveUpdatedAt: live.live ? new Date(live.updatedAt).toISOString() : null,
+    liveSampleSize: live.records.length,
+    liveCarriers: liveFlightsAvailable() ? TRACKED_CARRIERS.length : 0,
+    error: null,
   };
 }

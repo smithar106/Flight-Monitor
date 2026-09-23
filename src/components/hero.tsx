@@ -29,15 +29,32 @@ function Metric({
   );
 }
 
+function deltaText(n: number | null): string {
+  if (n === null) return "";
+  const sign = n >= 0 ? "+" : "";
+  return `${sign}${n.toFixed(1)} pts vs baseline`;
+}
+
 export function Hero({
   overview,
   baselineSource,
+  live,
+  liveReason,
+  liveUpdatedAt,
+  liveSampleSize,
+  liveCarriers,
 }: {
   overview: NationalOverview;
   baselineSource: string;
+  live: boolean;
+  liveReason: string | null;
+  liveUpdatedAt: string | null;
+  liveSampleSize: number;
+  liveCarriers: number;
 }) {
-  const updated = new Date(overview.updatedAt);
-  const disrupted = overview.airportsElevated + overview.airportsHigh + overview.airportsSevere;
+  const updated = liveUpdatedAt ? new Date(liveUpdatedAt) : new Date(overview.updatedAt);
+  const disrupted =
+    overview.airportsElevated + overview.airportsHigh + overview.airportsSevere;
 
   return (
     <section className="border-b border-line">
@@ -74,27 +91,27 @@ export function Hero({
             value={fmtInt(overview.flightsTracked)}
             note="live"
           />
-          <Metric
-            label="On-time"
-            value={fmtPct(overview.onTimePct)}
-            note="baseline"
-          />
+          <Metric label="On-time" value={fmtPct(overview.onTimePct)} note="live" />
           <Metric
             label="Delayed"
             value={fmtPct(overview.delayPct)}
-            note="baseline"
+            sub={deltaText(overview.delayDeltaPct)}
+            note="live"
           />
           <Metric
-            label="Canceled"
-            value={fmtPct(overview.canceledPct)}
-            note="baseline"
+            label="Canceled today"
+            value={fmtInt(overview.canceledToday)}
+            sub={
+              overview.canceledPctBaseline !== null
+                ? `${fmtPct(overview.canceledPctBaseline)} baseline`
+                : undefined
+            }
+            note="today"
           />
           <Metric
             label="Avg delay"
-            value={
-              overview.avgDelayMin !== null ? `${overview.avgDelayMin} min` : "—"
-            }
-            note="baseline"
+            value={overview.avgDelayMin !== null ? `${overview.avgDelayMin} min` : "—"}
+            note="live"
           />
           <Metric
             label="Airports disrupted"
@@ -104,10 +121,18 @@ export function Hero({
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-1 text-[0.6875rem] text-ink-faint">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-normal animate-pulse-dot" />
-            Live air traffic · updated {fmtClock(updated)} UTC
-          </span>
+          {live ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-normal animate-pulse-dot" />
+              Live flight status · {liveSampleSize} flights · {liveCarriers} carriers ·{" "}
+              {fmtClock(updated)} UTC
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1.5 text-elevated">
+              <span className="h-1.5 w-1.5 rounded-full bg-elevated" />
+              Live data unavailable{liveReason ? ` — ${liveReason}` : ""}
+            </span>
+          )}
           <span>Historical baselines · {baselineSource}</span>
         </div>
       </div>

@@ -26,9 +26,9 @@ The landing page immediately answers "how is U.S. aviation performing today" wit
 ## Architecture
 
 ```
-Live Flight Data (OpenSky ADS-B)
+Live Flight Status (AviationStack)
         ↓
-Normalization layer (src/lib/opensky.ts)
+Normalization layer (src/lib/aviationstack.ts)
         ↓
 Operational data model (src/lib/types.ts)
         ↓
@@ -51,7 +51,7 @@ The layering is deliberate: **metrics are computed deterministically; the LLM on
 
 ### Data-first, AI-second
 
-- **Live data** (OpenSky): aircraft tracked over the continental U.S., per-airport terminal traffic, per-airline airborne counts.
+- **Live data** (AviationStack): current per-flight status and delay for a bounded sample of major U.S. carriers — live on-time/delay/cancellation rates, flights tracked, and per-airline exposure.
 - **Historical data** (BTS): delay, cancellation, on-time, and average-delay baselines, controlled for airport/airline/season/day-of-week/time-of-day.
 - **Analytics**: the Disruption Score and all comparisons are pure, deterministic functions (unit-tested).
 - **AI**: `DEEPSEEK_API_KEY` powers the Operations Brief and Ask Flight Pulse. The LLM is handed structured facts and forbidden from inventing statistics; the UI surfaces the underlying evidence.
@@ -62,10 +62,10 @@ The layering is deliberate: **metrics are computed deterministically; the LLM on
 
 | Source | Role | Access |
 |---|---|---|
-| [OpenSky Network](https://opensky-network.org) | Live ADS-B aircraft positions (continental U.S.) | Anonymous (rate-limited) or free account |
+| [AviationStack](https://aviationstack.com) | Live per-flight status & delay (major U.S. carriers) | API key (free tier ~100 req/mo) |
 | [Bureau of Transportation Statistics](https://www.bts.gov) | Historical On-Time Performance baselines | Public CSV download |
 
-**Important:** the free data sources used here do not expose live per-flight delay/cancellation status. Delay, cancellation, on-time, and average-delay figures are therefore **historical baselines**, clearly labeled in the UI, while flights-tracked and terminal-traffic figures are **live**. The product never presents a baseline as live data, and never fabricates a live figure when it is unavailable.
+**Data honesty:** live delay/cancellation figures are current flight status from a *bounded sample* of major carriers (limited by the API plan's monthly quota), while baselines are historical BTS values. The product labels every figure as live or baseline, never presents a baseline as live, and never fabricates a live figure when the sample is too small or the quota is exhausted.
 
 A clearly-labeled **sample baseline** (`data/baselines/sample.json`) ships with the repo so the app runs out of the box. Generate a real BTS-derived baseline with:
 
@@ -90,9 +90,11 @@ npm run dev                  # http://localhost:3000
 | Variable | Required | Purpose |
 |---|---|---|
 | `DEEPSEEK_API_KEY` | No | Enables the AI Operations Brief and grounded Ask answers (falls back to deterministic text without it) |
-| `DEEPSEEK_BASE_URL` | No | Override the DeepSeek endpoint (default `https://api.deepseek.com`) |
-| `DEEPSEEK_MODEL` | No | Override the model (default `deepseek-chat`) |
-| `OPENSKY_USERNAME` / `OPENSKY_PASSWORD` | No | OpenSky account credentials to raise rate limits (anonymous by default) |
+| `AVIATIONSTACK_API_KEY` | No | Live flight-status data (falls back to baseline-only without it) |
+| `AVIATIONSTACK_CARRIERS` | No | Carriers sampled per refresh (default `UA,AA,DL,WN,B6,AS,NK,F9`) |
+| `AVIATIONSTACK_TTL_MS` | No | Live-data cache TTL (default 10 min) |
+| `AVIATIONSTACK_MAX_REQUESTS` | No | Monthly upstream request budget (default 80) |
+| `DEEPSEEK_BASE_URL` / `DEEPSEEK_MODEL` | No | DeepSeek endpoint/model overrides |
 
 ### Scripts
 
@@ -129,10 +131,10 @@ A reproducible 0–100 composite (see `src/lib/disruption.ts` and `/methodology`
 
 | Component | Weight | Derivation |
 |---|---|---|
-| Delay rate | up to 40 | baseline delay % (1 pt per 1%, saturates at 40%) |
-| Cancellation rate | up to 20 | baseline cancel % × 8 (saturates at 2.5%) |
-| Average delay duration | up to 15 | avg delay min ÷ 60 × 15 (saturates at 60 min) |
-| Live traffic anomaly | up to 25 | shortfall vs expected terminal traffic |
+| Baseline delay rate | up to 40 | baseline delay % (1 pt per 1%, saturates at 40%) |
+| Baseline cancellation rate | up to 20 | baseline cancel % × 8 (saturates at 2.5%) |
+| Baseline average delay | up to 15 | avg delay min ÷ 60 × 15 (saturates at 60 min) |
+| Live deviation | up to 25 | live delay/cancellation above baseline, scaled |
 
 Bands: 0–24 Normal · 25–49 Elevated · 50–74 High · 75–100 Severe.
 
@@ -140,7 +142,7 @@ Bands: 0–24 Normal · 25–49 Elevated · 50–74 High · 75–100 Severe.
 
 ## Deployment
 
-A standard Next.js app — deploy anywhere that supports Node (Vercel, Railway, etc.). Set the environment variables above. OpenSky requests are cached server-side (`src/lib/opensky.ts`) to stay within rate limits.
+A standard Next.js app — deploy anywhere that supports Node (Vercel, Railway, etc.). Set the environment variables above. AviationStack requests are cached server-side (`src/lib/aviationstack.ts`) and budgeted to stay within the plan's monthly limit.
 
 ---
 
@@ -155,8 +157,8 @@ npm run typecheck  # tsc --noEmit
 
 ## Known limitations
 
-- Live per-flight delay/cancellation status is not available from the free data sources; these figures are historical baselines.
-- Live coverage is continental U.S.; Alaska and Hawaii are outside the live snapshot.
-- Airline attribution uses ADS-B callsign prefixes and is approximate (non-ICAO callsigns are omitted).
+- Live coverage is a bounded sample of major carriers (limited by the API plan's monthly quota), not every U.S. flight.
+- Live delay is measured by current departure/arrival delay (≥ 15 min) on in-flight flights; airports with too few sampled flights report no live percentage.
+- Airline attribution uses the operating carrier; a small number of codeshare/regional flights may be misattributed.
 - Trend (improving/worsening) requires recent historical data and is unavailable with the sample baseline.
-- The live traffic-anomaly signal uses a documented modeling assumption (dwell-time constant); it is a proxy for throughput, not a precise count.
+- The sample baseline (`data/baselines/sample.json`) is clearly labeled; replace it with real BTS data via `node scripts/ingest-bts.mjs`.

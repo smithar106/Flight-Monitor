@@ -3,24 +3,19 @@ import {
   buildAllAirports,
   buildNationalOverview,
   buildAirlinePerformance,
+  MIN_SAMPLE,
 } from "./analytics";
-import type { OpenSkyStates } from "./opensky";
+import type { FlightRecord } from "./aviationstack";
 import { airportBaseline, airlineBaseline } from "./baselines";
 
-const empty: OpenSkyStates = { time: 1758000000, states: [] };
-
-function state(partial: Partial<OpenSkyStates["states"][number]> = {}) {
+function flight(partial: Partial<FlightRecord> = {}): FlightRecord {
   return {
-    icao24: "abc123",
-    callsign: "UAL123",
-    originCountry: "United States",
-    longitude: -87.9,
-    latitude: 41.97,
-    baroAltitude: 3000,
-    onGround: false,
-    velocity: 150,
-    verticalRate: -500,
-    timePosition: 1758000000,
+    airlineIata: "UA",
+    originIata: "ORD",
+    destIata: "JFK",
+    status: "active",
+    departureDelayMin: 5,
+    arrivalDelayMin: null,
     ...partial,
   };
 }
@@ -42,7 +37,7 @@ describe("baselines", () => {
 
 describe("analytics", () => {
   it("builds performance for every reference airport, sorted by score", () => {
-    const list = buildAllAirports(empty, new Date());
+    const list = buildAllAirports([]);
     expect(list).toHaveLength(40);
     for (let i = 1; i < list.length; i++) {
       expect(list[i - 1].disruptionScore).toBeGreaterThanOrEqual(
@@ -51,26 +46,37 @@ describe("analytics", () => {
     }
   });
 
-  it("computes a national overview with zero live flights when data is empty", () => {
-    const airports = buildAllAirports(empty, new Date());
-    const overview = buildNationalOverview(empty, airports, new Date());
+  it("computes a national overview with zero flights when there is no live data", () => {
+    const airports = buildAllAirports([]);
+    const overview = buildNationalOverview([], airports, false, Date.now());
     expect(overview.flightsTracked).toBe(0);
-    expect(overview.live).toBe(true);
+    expect(overview.live).toBe(false);
     expect(overview.statusLabel).toBeTruthy();
   });
 
-  it("counts airborne flights as tracked", () => {
-    const states: OpenSkyStates = {
-      time: 1758000000,
-      states: [state(), state({ onGround: true }), state()],
-    };
-    const airports = buildAllAirports(states, new Date());
-    const overview = buildNationalOverview(states, airports, new Date());
-    expect(overview.flightsTracked).toBe(2);
+  it("reports live delay only above the minimum sample size", () => {
+    const few = buildAllAirports([flight()]);
+    const ord = few.find((a) => a.airport.iata === "ORD")!;
+    expect(ord.metrics.flightsTracked).toBeGreaterThan(0);
+    expect(ord.metrics.live).toBe(false); // below MIN_SAMPLE
+
+    const many = Array.from({ length: MIN_SAMPLE * 2 }, () => flight());
+    const list = buildAllAirports(many);
+    const ordMany = list.find((a) => a.airport.iata === "ORD")!;
+    expect(ordMany.metrics.live).toBe(true);
+    expect(ordMany.metrics.delayPct).not.toBeNull();
+  });
+
+  it("counts delayed and on-time flights correctly", () => {
+    const records = Array.from({ length: MIN_SAMPLE * 2 }, () => flight());
+    records.push(flight({ departureDelayMin: 30 }));
+    const list = buildAllAirports(records);
+    const ord = list.find((a) => a.airport.iata === "ORD")!;
+    expect(ord.metrics.delayPct).toBeGreaterThan(0);
   });
 
   it("builds airline performance for all carriers", () => {
-    const list = buildAirlinePerformance(empty);
+    const list = buildAirlinePerformance([], false);
     expect(list).toHaveLength(12);
     expect(list[0].airline.name).toBeTruthy();
   });

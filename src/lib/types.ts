@@ -31,17 +31,16 @@ export interface PerformanceBaseline {
   source: "bts" | "sample";
 }
 
+// Live (current) metrics. Delay/on-time are rates over the active-flight
+// sample; cancellations are a daily count (a rate would mix a snapshot of
+// active flights with a full day of cancellations).
 export interface AirportMetrics {
   flightsTracked: number;
   onTimePct: number | null;
   delayPct: number | null;
-  canceledPct: number | null;
   avgDelayMin: number | null;
-  liveArrivals: number;
-  liveDepartures: number;
-  liveVolume: number;
-  expectedVolume: number | null;
-  volumeRatio: number | null;
+  canceledToday: number;
+  live: boolean;
 }
 
 export interface AirportPerformance {
@@ -51,6 +50,7 @@ export interface AirportPerformance {
   disruptionScore: number;
   status: StatusLevel;
   trend: Trend;
+  deltaDelayPct: number | null;
   factors: string[];
   topAirlines: AirlineExposure[];
 }
@@ -58,7 +58,6 @@ export interface AirportPerformance {
 export interface AirlineExposure {
   airline: AirlineRef;
   delayPct: number | null;
-  canceledPct: number | null;
   flights: number;
 }
 
@@ -67,10 +66,11 @@ export interface AirlinePerformance {
   flightsTracked: number;
   onTimePct: number | null;
   delayPct: number | null;
-  canceledPct: number | null;
   avgDelayMin: number | null;
+  canceledToday: number;
   baselineDelayPct: number | null;
   deltaDelayPct: number | null;
+  live: boolean;
   band: "outperforming" | "near" | "underperforming";
 }
 
@@ -80,8 +80,9 @@ export interface NationalOverview {
   flightsTracked: number;
   onTimePct: number | null;
   delayPct: number | null;
-  canceledPct: number | null;
   avgDelayMin: number | null;
+  canceledToday: number;
+  canceledPctBaseline: number | null;
   delayDeltaPct: number | null;
   airportsElevated: number;
   airportsHigh: number;

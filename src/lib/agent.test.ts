@@ -1,17 +1,21 @@
 import { describe, it, expect } from "vitest";
 import { askFlightPulse } from "./agent";
-import { buildAllAirports, buildNationalOverview } from "./analytics";
-import type { OpenSkyStates } from "./opensky";
-
-const empty: OpenSkyStates = { time: 1758000000, states: [] };
+import {
+  buildAllAirports,
+  buildNationalOverview,
+  buildAirlinePerformance,
+} from "./analytics";
+import type { FlightRecord } from "./aviationstack";
 
 function context() {
-  const airports = buildAllAirports(empty, new Date());
-  const overview = buildNationalOverview(empty, airports, new Date());
+  const records: FlightRecord[] = [];
+  const airports = buildAllAirports(records);
+  const overview = buildNationalOverview(records, airports, false, Date.now());
+  const airlines = buildAirlinePerformance(records, false);
   return {
     overview,
     airports,
-    airlines: [] as never[],
+    airlines,
     baselineSource: "sample (demo)",
     baselinePeriod: "sample",
   };
@@ -28,11 +32,14 @@ describe("askFlightPulse", () => {
   it("falls back to a template answer when the LLM is unavailable", async () => {
     const answer = await askFlightPulse(context(), "Why are delays high today?");
     expect(answer.generatedBy).toBe("template");
-    expect(answer.answer).toContain("delay");
+    expect(answer.answer.toLowerCase()).toContain("delay");
   });
 
   it("handles cancellation-concentration questions", async () => {
-    const answer = await askFlightPulse(context(), "Where are cancellations concentrated?");
+    const answer = await askFlightPulse(
+      context(),
+      "Where are cancellations concentrated?"
+    );
     expect(answer.evidence.length).toBeGreaterThan(0);
   });
 

@@ -15,12 +15,12 @@ type SortKey =
 
 const COLUMNS: { key: SortKey; label: string; align?: "right" }[] = [
   { key: "name", label: "Airline" },
-  { key: "flights", label: "In flight", align: "right" },
+  { key: "flights", label: "Tracked", align: "right" },
   { key: "onTime", label: "On-time", align: "right" },
   { key: "delay", label: "Delayed", align: "right" },
   { key: "cancel", label: "Canceled", align: "right" },
   { key: "avgDelay", label: "Avg delay", align: "right" },
-  { key: "delta", label: "vs national", align: "right" },
+  { key: "delta", label: "Δ vs baseline", align: "right" },
 ];
 
 function bandMeta(band: AirlinePerformance["band"]) {
@@ -46,7 +46,7 @@ export function Airlines({ airlines }: { airlines: AirlinePerformance[] }) {
         case "delay":
           return a.delayPct ?? -1;
         case "cancel":
-          return a.canceledPct ?? -1;
+          return a.canceledToday;
         case "avgDelay":
           return a.avgDelayMin ?? -1;
         case "delta":
@@ -112,7 +112,7 @@ export function Airlines({ airlines }: { airlines: AirlinePerformance[] }) {
                   {fmtPct(a.delayPct)}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono tabular-nums text-ink">
-                  {fmtPct(a.canceledPct)}
+                  {fmtInt(a.canceledToday)}
                 </td>
                 <td className="px-3 py-2.5 text-right font-mono tabular-nums text-ink">
                   {a.avgDelayMin !== null ? `${a.avgDelayMin}m` : "—"}
@@ -146,7 +146,7 @@ export function Airlines({ airlines }: { airlines: AirlinePerformance[] }) {
           Underperforming
         </span>
         <span className="ml-auto self-center">
-          Relative to the national baseline delay rate
+          Δ = live delay rate vs the airline's baseline
         </span>
       </div>
     </div>
