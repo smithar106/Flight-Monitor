@@ -13,23 +13,22 @@ const config: Config = {
         // Borders
         line: "#E8EBEF",
         "line-strong": "#D5DAE1",
-        // Text
-        ink: "#10151C",
-        "ink-2": "#3B4551",
-        "ink-muted": "#626E7C",
-        "ink-faint": "#96A0AD",
+        // Text (black + navy — no neutral grays)
+        ink: "#000000",
+        "ink-muted": "#1E3A5F",
+        "ink-faint": "#33527A",
         // Accent (single blue)
         pulse: "#2563EB",
         "pulse-soft": "#EAF1FE",
         "pulse-ink": "#1D4ED8",
         // Status
-        normal: "#17844F",
+        normal: "#15803D",
         "normal-soft": "#E8F5EE",
-        elevated: "#96630F",
+        elevated: "#B45309",
         "elevated-soft": "#FAF3E1",
-        high: "#A64A18",
+        high: "#C2410C",
         "high-soft": "#FCEFE4",
-        severe: "#C53030",
+        severe: "#B91C1C",
         "severe-soft": "#FCECEA",
       },
       fontFamily: {

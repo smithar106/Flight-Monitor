@@ -12,7 +12,7 @@ html {
 
 body {
   background-color: #f8f9fb;
-  color: #10151c;
+  color: #000000;
   font-feature-settings: "cv11", "ss01";
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
