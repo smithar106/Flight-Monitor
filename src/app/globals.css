@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: #070b12;
+  color: #e6eaf2;
+  font-feature-settings: "cv11", "ss01";
+  text-rendering: optimizeLegibility;
+}
+
+/* Restrained, consistent focus ring */
+:focus-visible {
+  outline: 2px solid #3e8bff;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: rgba(62, 139, 255, 0.28);
+}
+
+/* Subtle scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a3648 transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #2a3648;
+  border-radius: 999px;
+  border: 3px solid #070b12;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Numeric alignment for tabular data */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
