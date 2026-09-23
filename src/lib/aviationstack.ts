@@ -128,20 +128,39 @@ async function fetchCarrier(carrierIata: string, status: string): Promise<RawFli
     airline_iata: carrierIata,
     limit: "100",
   });
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 12_000);
-  try {
-    const res = await fetch(`${BASE}?${params.toString()}`, {
-      signal: controller.signal,
-      headers: { Accept: "application/json" },
-      next: { revalidate: 0 },
-    });
-    if (!res.ok) throw new Error(`AviationStack HTTP ${res.status}`);
-    const json = (await res.json()) as { data?: RawFlight[]; error?: unknown };
-    if (json.error) throw new Error(`AviationStack error: ${JSON.stringify(json.error)}`);
-    return json.data ?? [];
-  } finally {
-    clearTimeout(timer);
+  const url = `${BASE}?${params.toString()}`;
+
+  const backoff = [600, 1800, 4000];
+  for (let attempt = 0; ; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    try {
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: { Accept: "application/json" },
+        next: { revalidate: 0 },
+      });
+      const json = (await res.json().catch(() => null)) as
+        | { data?: RawFlight[]; error?: { code?: string; message?: string } }
+        | null;
+
+      if (json?.error) {
+        const code = json.error.code;
+        if (code === "usage_limit_reached" || code === "rate_limit_reached") {
+          throw new Error("AviationStack monthly limit reached");
+        }
+        throw new Error(`AviationStack error: ${json.error.message ?? code ?? "unknown"}`);
+      }
+
+      if (res.status === 429 && attempt < backoff.length) {
+        await new Promise((r) => setTimeout(r, backoff[attempt]));
+        continue;
+      }
+      if (!res.ok) throw new Error(`AviationStack HTTP ${res.status}`);
+      return json?.data ?? [];
+    } finally {
+      clearTimeout(timer);
+    }
   }
 }
 
@@ -182,14 +201,17 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
   }
 
   try {
-    const all: RawFlight[] = [];
+    const tasks: string[] = [];
     for (const c of carriers()) {
-      for (const status of ["active", "cancelled"]) {
-        const batch = await fetchCarrier(c, status);
-        budgetUsed += 1;
-        all.push(...batch);
-      }
+      tasks.push(`${c}|active`, `${c}|cancelled`);
     }
+    const all: RawFlight[] = [];
+    await mapWithConcurrency(tasks, 2, async (task) => {
+      const [c, status] = task.split("|");
+      const batch = await fetchCarrier(c, status);
+      budgetUsed += 1;
+      all.push(...batch);
+    });
     const result: LiveFlightsResult = {
       records: normalize(all),
       live: true,
@@ -208,6 +230,21 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
       requestCount: budgetUsed,
     };
   }
+}
+
+async function mapWithConcurrency<T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<void>
+): Promise<void> {
+  let index = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (index < items.length) {
+      const i = index++;
+      await fn(items[i]);
+    }
+  });
+  await Promise.all(workers);
 }
 
 // Keep AIRLINES import used (carrier list is validated against known airlines).

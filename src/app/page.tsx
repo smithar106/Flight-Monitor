@@ -14,13 +14,23 @@ import { Card, SectionHeading } from "@/components/ui";
 
 function Skeleton() {
   return (
-    <div className="mx-auto max-w-7xl space-y-8 px-5 py-10 sm:px-8">
-      <div className="h-40 animate-pulse rounded-sm2 border border-line bg-surface" />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="h-96 animate-pulse rounded-sm2 border border-line bg-surface" />
-        <div className="h-96 animate-pulse rounded-sm2 border border-line bg-surface" />
+    <div className="mx-auto max-w-7xl space-y-10 px-5 py-10 sm:px-8">
+      <div className="space-y-4">
+        <div className="h-4 w-40 animate-pulse rounded bg-surface-3" />
+        <div className="h-9 w-72 animate-pulse rounded bg-surface-3" />
+        <div className="h-4 w-full max-w-xl animate-pulse rounded bg-surface-3" />
+        <div className="mt-6 grid grid-cols-2 gap-6 border-t border-line pt-8 sm:grid-cols-3 lg:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-16 animate-pulse rounded bg-surface-3" />
+          ))}
+        </div>
       </div>
-      <div className="h-72 animate-pulse rounded-sm2 border border-line bg-surface" />
+      <div className="h-40 animate-pulse rounded-lg bg-surface-3" />
+      <div className="grid gap-6 lg:grid-cols-5">
+        <div className="h-96 animate-pulse rounded-lg bg-surface-3 lg:col-span-3" />
+        <div className="h-96 animate-pulse rounded-lg bg-surface-3 lg:col-span-2" />
+      </div>
+      <div className="h-72 animate-pulse rounded-lg bg-surface-3" />
     </div>
   );
 }
@@ -53,18 +63,18 @@ export default function Page() {
 
   if (error || !data) {
     return (
-      <div className="mx-auto max-w-2xl px-5 py-24 text-center">
+      <div className="mx-auto max-w-md px-5 py-24 text-center">
         <div className="text-lg font-semibold text-ink">
-          Unable to load flight operations data
+          We couldn't load flight operations
         </div>
         <p className="mt-2 text-sm text-ink-muted">
-          {error ?? "The data service did not respond."}
+          The data service didn't respond. Please try again.
         </p>
         <button
           onClick={load}
-          className="mt-6 rounded-sm2 bg-pulse px-4 py-2.5 text-sm font-medium text-abyss hover:opacity-90"
+          className="mt-6 rounded-lg bg-pulse px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-pulse-ink"
         >
-          Retry
+          Try again
         </button>
       </div>
     );
@@ -95,65 +105,54 @@ export default function Page() {
       />
 
       {!live && (
-        <div className="border-b border-elevated/30 bg-elevated-soft px-5 py-2 text-center text-xs text-elevated">
-          Live flight-status data is unavailable{liveReason ? ` (${liveReason})` : ""}. Showing
+        <div className="border-b border-elevated-soft bg-elevated-soft px-5 py-2 text-center text-[0.8125rem] text-elevated">
+          Live flight status is unavailable{liveReason ? ` (${liveReason})` : ""} — showing
           historical baselines.
         </div>
       )}
 
       <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
+        <Brief />
+      </section>
+
+      <section className="mx-auto max-w-7xl px-5 pb-4 sm:px-8">
+        <SectionHeading
+          eyebrow="Where"
+          title="Airport disruption"
+          right={
+            <span className="text-[0.75rem] text-ink-faint">Select an airport for detail</span>
+          }
+        />
         <div className="grid gap-6 lg:grid-cols-5">
-          <Card className="lg:col-span-3 p-4">
-            <SectionHeading
-              eyebrow="U.S. Airports"
-              title="Disruption map"
-              right={
-                <span className="text-[0.6875rem] text-ink-faint">
-                  Circle size = disruption score
-                </span>
-              }
-            />
+          <Card className="p-4 lg:col-span-3">
             <MapView airports={airports} onSelect={setSelected} />
           </Card>
-
           <Card className="lg:col-span-2">
-            <SectionHeading eyebrow="Ranking" title="Most disrupted airports" />
             <Ranking airports={airports} onSelect={setSelected} />
           </Card>
         </div>
       </section>
 
-      <section id="airlines" className="mx-auto max-w-7xl px-5 pb-4 sm:px-8">
-        <Card className="p-4 sm:p-5">
-          <SectionHeading
-            eyebrow="Carriers"
-            title="Airline performance"
-            right={
-              <span className="text-[0.6875rem] text-ink-faint">
-                Delay figures are live · click headers to sort
-              </span>
-            }
-          />
+      <section id="airlines" className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
+        <SectionHeading
+          eyebrow="Who"
+          title="Airline performance"
+          right={
+            <span className="text-[0.75rem] text-ink-faint">Sort by any column</span>
+          }
+        />
+        <Card className="overflow-hidden">
           <Airlines airlines={airlines} />
         </Card>
       </section>
 
-      <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="p-5">
-            <SectionHeading
-              eyebrow="AI"
-              title="Operations brief"
-              right={<span className="text-[0.6875rem] text-ink-faint">Auto-generated</span>}
-            />
-            <Brief />
-          </Card>
-
-          <Card className="p-5">
-            <SectionHeading eyebrow="Analysis" title="Ask Flight Pulse" />
-            <Ask />
-          </Card>
-        </div>
+      <section className="mx-auto max-w-7xl px-5 py-4 sm:px-8">
+        <SectionHeading
+          eyebrow="Ask the data"
+          title="Ask a question"
+          right={<span className="text-[0.75rem] text-ink-faint">Grounded in live metrics</span>}
+        />
+        <Ask />
       </section>
 
       <AirportDrawer airport={selected} onClose={() => setSelected(null)} />

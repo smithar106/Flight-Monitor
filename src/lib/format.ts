@@ -50,7 +50,7 @@ export const STATUS_META: Record<
     dot: "bg-normal",
     bg: "bg-normal-soft",
     border: "border-normal/30",
-    hex: "#1FBF8A",
+    hex: "#17844F",
   },
   elevated: {
     label: "Elevated",
@@ -58,7 +58,7 @@ export const STATUS_META: Record<
     dot: "bg-elevated",
     bg: "bg-elevated-soft",
     border: "border-elevated/30",
-    hex: "#E0A82E",
+    hex: "#96630F",
   },
   high: {
     label: "High",
@@ -66,7 +66,7 @@ export const STATUS_META: Record<
     dot: "bg-high",
     bg: "bg-high-soft",
     border: "border-high/30",
-    hex: "#F07B3F",
+    hex: "#A64A18",
   },
   severe: {
     label: "Severe",
@@ -74,6 +74,6 @@ export const STATUS_META: Record<
     dot: "bg-severe",
     bg: "bg-severe-soft",
     border: "border-severe/30",
-    hex: "#F0483E",
+    hex: "#C53030",
   },
 };

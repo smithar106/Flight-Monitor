@@ -1,38 +1,30 @@
 import type { NationalOverview } from "@/lib/types";
 import { fmtInt, fmtPct, fmtDate, fmtClock } from "@/lib/format";
-import { StatusPill } from "./ui";
+import { Metric, StatusPill } from "./ui";
 
-function Metric({
-  label,
-  value,
-  sub,
-  note,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  note?: string;
-}) {
+function Delta({ value }: { value: number | null }) {
+  if (value === null) return null;
+  const good = value <= 0;
   return (
-    <div className="rounded-sm2 border border-line bg-surface px-4 py-3.5">
-      <div className="flex items-center justify-between">
-        <span className="text-[0.6875rem] uppercase tracking-eyebrow text-ink-faint">
-          {label}
-        </span>
-        {note ? <span className="text-[0.625rem] text-ink-faint">{note}</span> : null}
-      </div>
-      <div className="mt-1.5 font-mono text-[1.75rem] font-semibold leading-none tabular-nums text-ink">
-        {value}
-      </div>
-      {sub ? <div className="mt-1.5 text-xs text-ink-muted">{sub}</div> : null}
-    </div>
+    <span className={good ? "text-normal" : "text-severe"}>
+      {value > 0 ? "+" : ""}
+      {value.toFixed(1)} pts vs normal
+    </span>
   );
 }
 
-function deltaText(n: number | null): string {
-  if (n === null) return "";
-  const sign = n >= 0 ? "+" : "";
-  return `${sign}${n.toFixed(1)} pts vs baseline`;
+function summary(o: NationalOverview): string {
+  const disrupted = o.airportsElevated + o.airportsHigh + o.airportsSevere;
+  switch (o.status) {
+    case "normal":
+      return "U.S. aviation is operating close to historical norms.";
+    case "elevated":
+      return `${disrupted} major airports are showing elevated disruption, with delays above their normal range.`;
+    case "high":
+      return `Disruption is elevated across the network — ${o.airportsHigh} airports are high and ${o.airportsSevere} severe.`;
+    case "severe":
+      return `Severe disruption across the network — ${o.airportsSevere} airports are critically impacted.`;
+  }
 }
 
 export function Hero({
@@ -53,83 +45,75 @@ export function Hero({
   liveCarriers: number;
 }) {
   const updated = liveUpdatedAt ? new Date(liveUpdatedAt) : new Date(overview.updatedAt);
-  const disrupted =
-    overview.airportsElevated + overview.airportsHigh + overview.airportsSevere;
+  const disrupted = overview.airportsElevated + overview.airportsHigh + overview.airportsSevere;
 
   return (
-    <section className="border-b border-line">
-      <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="text-[0.6875rem] font-semibold uppercase tracking-eyebrow text-ink-faint">
-              U.S. Flight Operations · {fmtDate(updated)}
+    <section className="border-b border-line bg-surface">
+      <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-12">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="max-w-xl">
+            <div className="text-[0.6875rem] font-medium uppercase tracking-eyebrow text-ink-faint">
+              National status · {fmtDate(updated)}
             </div>
-            <h1 className="mt-2 text-display font-semibold tracking-tight text-ink">
-              Flight Pulse
+            <h1 className="mt-3 text-display font-semibold tracking-tight text-ink">
+              {overview.statusLabel}
             </h1>
-            <p className="mt-1 text-ink-muted">
-              What is happening across U.S. aviation today — and why it matters.
-            </p>
+            <p className="mt-3 text-lead text-ink-muted">{summary(overview)}</p>
+            <div className="mt-4">
+              <StatusPill status={overview.status} size="lg" />
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-[0.6875rem] uppercase tracking-eyebrow text-ink-faint">
-                National status
-              </div>
-              <div className="mt-1 text-xl font-semibold tracking-tight text-ink">
-                {overview.statusLabel}
-              </div>
-            </div>
-            <StatusPill status={overview.status} size="lg" />
+          <div className="flex items-center gap-2 text-[0.75rem] text-ink-faint lg:mt-2">
+            {live ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-normal animate-pulse-dot" />
+                Live
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-elevated">
+                <span className="h-1.5 w-1.5 rounded-full bg-elevated" />
+                Live data unavailable
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-line pt-8 sm:grid-cols-3 lg:grid-cols-6">
+          <Metric value={fmtInt(overview.flightsTracked)} label="Flights tracked" />
+          <Metric value={fmtPct(overview.onTimePct)} label="On time" />
           <Metric
-            label="Flights tracked"
-            value={fmtInt(overview.flightsTracked)}
-            note="live"
-          />
-          <Metric label="On-time" value={fmtPct(overview.onTimePct)} note="live" />
-          <Metric
-            label="Delayed"
             value={fmtPct(overview.delayPct)}
-            sub={deltaText(overview.delayDeltaPct)}
-            note="live"
+            label="Delayed"
+            sub={<Delta value={overview.delayDeltaPct} />}
           />
           <Metric
-            label="Canceled today"
             value={fmtInt(overview.canceledToday)}
+            label="Canceled today"
             sub={
               overview.canceledPctBaseline !== null
                 ? `${fmtPct(overview.canceledPctBaseline)} baseline`
                 : undefined
             }
-            note="today"
           />
           <Metric
-            label="Avg delay"
             value={overview.avgDelayMin !== null ? `${overview.avgDelayMin} min` : "—"}
-            note="live"
+            label="Average delay"
           />
           <Metric
-            label="Airports disrupted"
             value={fmtInt(disrupted)}
+            label="Airports disrupted"
             sub={`${overview.airportsHigh} high · ${overview.airportsSevere} severe`}
           />
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-1 text-[0.6875rem] text-ink-faint">
+        <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-1 text-[0.75rem] text-ink-faint">
           {live ? (
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-normal animate-pulse-dot" />
-              Live flight status · {liveSampleSize} flights · {liveCarriers} carriers ·{" "}
-              {fmtClock(updated)} UTC
+            <span>
+              {liveSampleSize} flights · {liveCarriers} carriers · updated {fmtClock(updated)} UTC
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 text-elevated">
-              <span className="h-1.5 w-1.5 rounded-full bg-elevated" />
+            <span className="text-elevated">
               Live data unavailable{liveReason ? ` — ${liveReason}` : ""}
             </span>
           )}

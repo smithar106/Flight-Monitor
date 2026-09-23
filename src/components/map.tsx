@@ -76,14 +76,14 @@ export function MapView({ airports, onSelect }: Props) {
         <path
           d={path(graticule) ?? undefined}
           fill="none"
-          stroke="#16202f"
+          stroke="#EDF0F3"
           strokeWidth={0.5}
         />
         {nation && (
           <path
             d={path(nation) ?? undefined}
-            fill="#0c121c"
-            stroke="#243041"
+            fill="#FFFFFF"
+            stroke="#D5DAE1"
             strokeWidth={0.75}
           />
         )}
@@ -109,7 +109,7 @@ export function MapView({ airports, onSelect }: Props) {
                 cy={pos[1]}
                 r={r}
                 fill={meta.hex}
-                stroke="#070b12"
+                stroke="#FFFFFF"
                 strokeWidth={1}
                 opacity={hovered && hovered.airport.iata !== a.airport.iata ? 0.55 : 1}
                 style={{ transition: "opacity 150ms ease" }}
@@ -132,7 +132,7 @@ export function MapView({ airports, onSelect }: Props) {
 
       {hovered && cursor && (
         <div
-          className="pointer-events-none absolute z-10 min-w-[150px] rounded-sm2 border border-line-strong bg-surface-2 px-3 py-2 shadow-panel-lg"
+          className="pointer-events-none absolute z-10 min-w-[150px] rounded-lg border border-line bg-surface px-3 py-2 shadow-raised"
           style={{
             left: cursor.x + 14,
             top: cursor.y + 10,

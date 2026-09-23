@@ -9,3 +9,6 @@ npm-debug.log*
 .DS_Store
 data/raw/
 *.log
+
+# playwright-cli artifacts
+.playwright-cli/

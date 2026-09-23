@@ -45,7 +45,7 @@ export function Ranking({
                   >
                     {" "}
                     ({a.deltaDelayPct >= 0 ? "+" : ""}
-                    {a.deltaDelayPct} vs base)
+                    {a.deltaDelayPct} vs baseline)
                   </span>
                 ) : null}{" "}
                 · {a.metrics.canceledToday} canceled

@@ -78,6 +78,10 @@ export function Airlines({ airlines }: { airlines: AirlinePerformance[] }) {
             {COLUMNS.map((c) => (
               <th
                 key={c.key}
+                scope="col"
+                aria-sort={
+                  sort === c.key ? (asc ? "ascending" : "descending") : "none"
+                }
                 className={`cursor-pointer select-none whitespace-nowrap px-3 py-2.5 font-medium ${
                   c.align === "right" ? "text-right" : "text-left"
                 }`}
@@ -146,7 +150,7 @@ export function Airlines({ airlines }: { airlines: AirlinePerformance[] }) {
           Underperforming
         </span>
         <span className="ml-auto self-center">
-          Δ = live delay rate vs the airline's baseline
+          Δ vs the airline's historical baseline
         </span>
       </div>
     </div>
