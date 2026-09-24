@@ -40,7 +40,7 @@ export function Brief() {
             AI operations brief
           </div>
           <span className="text-[0.6875rem] text-ink-faint">
-            {brief?.generatedBy === "llm" ? "AI · from live metrics" : "Auto-generated"}
+            {brief?.generatedBy === "llm" ? "AI" : "Auto-generated"}
           </span>
         </div>
 

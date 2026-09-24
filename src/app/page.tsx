@@ -163,7 +163,7 @@ export default function Page() {
         <SectionHeading
           eyebrow="Ask the data"
           title="Ask a question"
-          right={<span className="text-[0.75rem] text-ink-faint">Grounded in live metrics</span>}
+          right={<span className="text-[0.75rem] text-ink-faint">Grounded in application data</span>}
         />
         <Ask />
       </section>

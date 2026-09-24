@@ -81,16 +81,25 @@ export function Hero({
 
         <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-8 border-t border-line pt-8 sm:grid-cols-3 lg:grid-cols-6">
           <Metric value={live ? fmtInt(overview.flightsTracked) : "—"} label="Flights tracked" />
-          <Metric value={live ? fmtPct(overview.onTimePct) : "—"} label="On time" />
           <Metric
-            value={live ? fmtPct(overview.delayPct) : "—"}
-            label="Delayed"
+            value={fmtPct(live ? overview.onTimePct : overview.onTimePctBaseline)}
+            label={live ? "On time" : "On time (baseline)"}
+          />
+          <Metric
+            value={fmtPct(live ? overview.delayPct : overview.delayPctBaseline)}
+            label={live ? "Delayed" : "Delayed (baseline)"}
             sub={live ? <Delta value={overview.delayDeltaPct} /> : undefined}
           />
           <Metric label="Canceled (baseline)" value={fmtPct(overview.canceledPctBaseline)} />
           <Metric
-            value={live && overview.avgDelayMin !== null ? `${overview.avgDelayMin} min` : "—"}
-            label="Average delay"
+            value={
+              live && overview.avgDelayMin !== null
+                ? `${overview.avgDelayMin} min`
+                : overview.avgDelayMinBaseline !== null
+                  ? `${overview.avgDelayMinBaseline} min`
+                  : "—"
+            }
+            label={live ? "Average delay" : "Average delay (baseline)"}
           />
           <Metric
             value={fmtInt(disrupted)}

@@ -31,36 +31,44 @@ function fmtDelta(n: number | null): string {
 
 function buildFacts(ctx: Context): string {
   const o = ctx.overview;
+  const live = o.live;
   const top = ctx.airports.slice(0, 5);
+
   const topAirports = top
-    .map(
-      (a) =>
-        `${a.airport.iata} (${a.airport.city}): score ${a.disruptionScore}/100 ${a.status}, ` +
-        `live delay ${fmtPct(a.metrics.delayPct)} (baseline ${fmtPct(a.baseline?.delayPct ?? null)}), ` +
-        `${a.metrics.flightsTracked} flights tracked`
+    .map((a) =>
+      live
+        ? `${a.airport.iata} (${a.airport.city}): score ${a.disruptionScore}/100 ${a.status}, ` +
+          `live delay ${fmtPct(a.metrics.delayPct)} (baseline ${fmtPct(a.baseline?.delayPct ?? null)})`
+        : `${a.airport.iata} (${a.airport.city}): score ${a.disruptionScore}/100 ${a.status}, ` +
+          `baseline delay ${fmtPct(a.baseline?.delayPct ?? null)}`
     )
     .join("\n");
 
   const airlineLines = ctx.airlines
-    .filter((a) => a.live)
+    .filter((a) => (live ? a.live : a.baselineDelayPct !== null))
     .slice(0, 6)
-    .map(
-      (a) =>
-        `${a.airline.name}: live delay ${fmtPct(a.delayPct)}, ${a.flightsTracked} flights tracked`
+    .map((a) =>
+      live
+        ? `${a.airline.name}: live delay ${fmtPct(a.delayPct)}`
+        : `${a.airline.name}: baseline delay ${fmtPct(a.baselineDelayPct)}`
     )
     .join("\n");
 
   return [
     `National status: ${o.statusLabel.toUpperCase()} (${o.status}).`,
-    `Live sample: ${o.flightsTracked} flights tracked across major U.S. carriers.`,
-    `Live performance: on-time ${fmtPct(o.onTimePct)}, delayed ${fmtPct(o.delayPct)}${fmtDelta(o.delayDeltaPct)}, average delay ${o.avgDelayMin ?? "n/a"} min.`,
+    live
+      ? `Live sample: ${o.flightsTracked} flights tracked across major U.S. carriers.`
+      : `Live data is paused (monthly request limit reached); showing historical baselines.`,
+    live
+      ? `Live performance: on-time ${fmtPct(o.onTimePct)}, delayed ${fmtPct(o.delayPct)}${fmtDelta(o.delayDeltaPct)}, average delay ${o.avgDelayMin ?? "n/a"} min.`
+      : `Baseline performance: on-time ${fmtPct(o.onTimePctBaseline)}, delayed ${fmtPct(o.delayPctBaseline)}, average delay ${o.avgDelayMinBaseline ?? "n/a"} min.`,
     `Historical cancellation rate: ${fmtPct(o.canceledPctBaseline)} (baseline).`,
     `Airports elevated: ${o.airportsElevated}, high: ${o.airportsHigh}, severe: ${o.airportsSevere} (of ${o.totalAirports} tracked).`,
     ``,
     `Most disrupted airports (by disruption score):`,
     topAirports,
     ``,
-    `Airlines with live data:`,
+    live ? `Airlines with live data:` : `Airlines (baseline):`,
     airlineLines || "none",
   ].join("\n");
 }
@@ -122,8 +130,8 @@ export async function buildOperationsBrief(ctx: Context): Promise<OperationsBrie
   const facts = buildFacts(ctx);
   const references: BriefReference[] = [
     ref("Status", ctx.overview.statusLabel),
-    ref("Flights tracked (live)", String(ctx.overview.flightsTracked)),
-    ref("Delayed (live)", fmtPct(ctx.overview.delayPct)),
+    ref("Flights tracked (live)", ctx.overview.live ? String(ctx.overview.flightsTracked) : "n/a"),
+    ref(ctx.overview.live ? "Delayed (live)" : "Delayed (baseline)", fmtPct(ctx.overview.live ? ctx.overview.delayPct : ctx.overview.delayPctBaseline)),
     ref("vs baseline", ctx.overview.delayDeltaPct === null ? "n/a" : `${ctx.overview.delayDeltaPct >= 0 ? "+" : ""}${ctx.overview.delayDeltaPct} pts`),
     ref("Canceled (baseline)", fmtPct(ctx.overview.canceledPctBaseline)),
     ref("Baseline source", `${ctx.baselineSource} — ${ctx.baselinePeriod}`),

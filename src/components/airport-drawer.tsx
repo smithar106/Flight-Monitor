@@ -88,31 +88,33 @@ export function AirportDrawer({
             <ScoreBadge score={a.disruptionScore} status={a.status} />
           </div>
 
-          <div className="mt-7">
-            <SectionTitle>Live</SectionTitle>
-            <div className="mt-1 divide-y divide-line">
-              <Row label="Flights tracked" value={fmtInt(a.metrics.flightsTracked)} />
-              <Row label="On time" value={fmtPct(a.metrics.onTimePct)} />
-              <Row
-                label="Delayed"
-                value={fmtPct(a.metrics.delayPct)}
-                sub={
-                  a.deltaDelayPct !== null
-                    ? `${a.deltaDelayPct >= 0 ? "+" : ""}${a.deltaDelayPct} pts`
-                    : undefined
-                }
-              />
-              <Row
-                label="Average delay"
-                value={a.metrics.avgDelayMin !== null ? `${a.metrics.avgDelayMin} min` : "—"}
-              />
+          {a.metrics.flightsTracked > 0 && (
+            <div className="mt-7">
+              <SectionTitle>Live</SectionTitle>
+              <div className="mt-1 divide-y divide-line">
+                <Row label="Flights tracked" value={fmtInt(a.metrics.flightsTracked)} />
+                <Row label="On time" value={fmtPct(a.metrics.onTimePct)} />
+                <Row
+                  label="Delayed"
+                  value={fmtPct(a.metrics.delayPct)}
+                  sub={
+                    a.deltaDelayPct !== null
+                      ? `${a.deltaDelayPct >= 0 ? "+" : ""}${a.deltaDelayPct} pts`
+                      : undefined
+                  }
+                />
+                <Row
+                  label="Average delay"
+                  value={a.metrics.avgDelayMin !== null ? `${a.metrics.avgDelayMin} min` : "—"}
+                />
+              </div>
+              {!a.metrics.live && (
+                <p className="mt-2 text-[0.75rem] text-ink-faint">
+                  Live sample too small to report percentages for this airport.
+                </p>
+              )}
             </div>
-            {!a.metrics.live && (
-              <p className="mt-2 text-[0.75rem] text-ink-faint">
-                Live sample too small to report percentages for this airport.
-              </p>
-            )}
-          </div>
+          )}
 
           <div className="mt-7">
             <SectionTitle>Historical baseline</SectionTitle>

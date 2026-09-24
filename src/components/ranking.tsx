@@ -36,18 +36,27 @@ export function Ranking({
                 </span>
               </div>
               <div className="mt-0.5 text-[0.6875rem] text-ink-faint">
-                {fmtPct(a.metrics.delayPct)} delayed
-                {a.deltaDelayPct !== null ? (
-                  <span
-                    className={
-                      a.deltaDelayPct >= 0 ? " text-severe" : " text-normal"
-                    }
-                  >
-                    {" "}
-                    ({a.deltaDelayPct >= 0 ? "+" : ""}
-                    {a.deltaDelayPct} vs baseline)
-                  </span>
-                ) : null}
+                {a.metrics.delayPct !== null ? (
+                  <>
+                    {fmtPct(a.metrics.delayPct)} delayed
+                    {a.deltaDelayPct !== null ? (
+                      <span
+                        className={
+                          a.deltaDelayPct >= 0 ? " text-severe" : " text-normal"
+                        }
+                      >
+                        {" "}
+                        ({a.deltaDelayPct >= 0 ? "+" : ""}
+                        {a.deltaDelayPct} vs baseline)
+                      </span>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    {fmtPct(a.baseline?.delayPct ?? null)} delayed
+                    <span className="text-ink-faint"> · baseline</span>
+                  </>
+                )}
               </div>
             </div>
             <div className="text-right">
@@ -55,7 +64,11 @@ export function Ranking({
                 {a.disruptionScore}
               </div>
               <div className="text-[0.625rem] text-ink-faint">
-                {fmtInt(a.metrics.flightsTracked)} flights
+                {a.metrics.flightsTracked > 0
+                  ? `${fmtInt(a.metrics.flightsTracked)} flights`
+                  : a.baseline?.sampleSize
+                    ? `${fmtInt(a.baseline.sampleSize)} sample`
+                    : ""}
               </div>
             </div>
             <StatusPill status={a.status} size="sm" />

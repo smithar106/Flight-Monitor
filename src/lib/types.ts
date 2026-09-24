@@ -67,6 +67,8 @@ export interface AirlinePerformance {
   delayPct: number | null;
   avgDelayMin: number | null;
   baselineDelayPct: number | null;
+  baselineOnTimePct: number | null;
+  baselineAvgDelayMin: number | null;
   deltaDelayPct: number | null;
   live: boolean;
   band: "outperforming" | "near" | "underperforming";
@@ -87,6 +89,9 @@ export interface NationalOverview {
   delayPct: number | null;
   avgDelayMin: number | null;
   canceledPctBaseline: number | null;
+  onTimePctBaseline: number | null;
+  delayPctBaseline: number | null;
+  avgDelayMinBaseline: number | null;
   delayDeltaPct: number | null;
   airportsElevated: number;
   airportsHigh: number;
