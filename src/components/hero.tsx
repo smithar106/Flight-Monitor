@@ -31,6 +31,7 @@ export function Hero({
   overview,
   baselineSource,
   live,
+  demo,
   liveReason,
   liveUpdatedAt,
   liveSampleSize,
@@ -39,6 +40,7 @@ export function Hero({
   overview: NationalOverview;
   baselineSource: string;
   live: boolean;
+  demo: boolean;
   liveReason: string | null;
   liveUpdatedAt: string | null;
   liveSampleSize: number;
@@ -65,7 +67,12 @@ export function Hero({
           </div>
 
           <div className="flex items-center gap-2 text-[0.75rem] text-ink-faint lg:mt-2">
-            {live ? (
+            {demo ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-pulse" />
+                Demo data
+              </span>
+            ) : live ? (
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-normal" />
                 Yesterday's flights
@@ -109,7 +116,14 @@ export function Hero({
         </div>
 
         <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-1 text-[0.75rem] text-ink-faint">
-          {live ? (
+          {demo ? (
+            <>
+              <span className="font-medium text-ink-muted">
+                Demo data · {liveSampleSize} synthetic flights across {liveCarriers} carriers · regenerated daily
+              </span>
+              <span>Historical baselines · {baselineSource}</span>
+            </>
+          ) : live ? (
             <>
               <span>
                 Yesterday's flights · {liveSampleSize} across {liveCarriers} carriers · ingested{" "}

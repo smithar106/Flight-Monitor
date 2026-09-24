@@ -65,7 +65,7 @@ The layering is deliberate: **metrics are computed deterministically; the LLM on
 | [AviationStack](https://aviationstack.com) | Previous-day flight results (3 major U.S. carriers) | API key (free tier ~100 req/mo) |
 | [Bureau of Transportation Statistics](https://www.bts.gov) | Historical On-Time Performance baselines | Public CSV download |
 
-**Data honesty:** daily delay figures are the previous day's actual results for a *small sample* of three major carriers (limited by the API plan's monthly quota), while cancellation figures and all baselines are historical BTS values. The product labels every figure as daily or baseline, never presents a baseline as daily, and never fabricates a figure when the sample is too small or the quota is exhausted.
+**Data honesty:** daily delay figures are the previous day's actual results for a *small sample* of three major carriers (limited by the API plan's monthly quota), while cancellation figures and all baselines are historical BTS values. When the API quota is exhausted, the app falls back to **clearly-labeled synthetic demo data** so it remains functional — never presented as real. The product labels every figure as daily, baseline, or demo, and never fabricates a figure as real.
 
 A clearly-labeled **sample baseline** (`data/baselines/sample.json`) ships with the repo so the app runs out of the box. Generate a real BTS-derived baseline with:
 

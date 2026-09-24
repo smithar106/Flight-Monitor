@@ -3,6 +3,7 @@ import {
   TRACKED_CARRIERS,
   liveFlightsAvailable,
 } from "./aviationstack";
+import { generateSyntheticFlights, SYNTHETIC_CARRIERS } from "./synthetic";
 import {
   buildAllAirports,
   buildNationalOverview,
@@ -25,6 +26,7 @@ export interface AppContext {
   baselineSource: string;
   baselinePeriod: string;
   live: boolean;
+  demo: boolean;
   liveReason: string | null;
   liveUpdatedAt: string | null;
   liveSampleSize: number;
@@ -33,17 +35,28 @@ export interface AppContext {
 }
 
 export async function getAppContext(): Promise<AppContext> {
-  const live = await getLiveFlights();
+  const real = await getLiveFlights();
 
-  const airports = buildAllAirports(live.records);
-  const overview = buildNationalOverview(
-    live.records,
-    airports,
-    live.live,
-    live.updatedAt
-  );
-  const airlines = buildAirlinePerformance(live.records, live.live);
-  const routes = buildRoutes(live.records);
+  let records = real.records;
+  let demo = false;
+  let live = real.live;
+  let updatedAt = real.updatedAt;
+  let carriers = liveFlightsAvailable() ? TRACKED_CARRIERS.length : 0;
+
+  // When the real source is unavailable (e.g. monthly quota exhausted), fall
+  // back to clearly-labeled synthetic demo data so the product stays alive.
+  if (!live || records.length === 0) {
+    records = generateSyntheticFlights();
+    demo = true;
+    live = true;
+    updatedAt = Date.now();
+    carriers = SYNTHETIC_CARRIERS;
+  }
+
+  const airports = buildAllAirports(records);
+  const overview = buildNationalOverview(records, airports, true, updatedAt);
+  const airlines = buildAirlinePerformance(records, true);
+  const routes = buildRoutes(records);
   const ctx = dataContext();
 
   return {
@@ -53,11 +66,12 @@ export async function getAppContext(): Promise<AppContext> {
     routes,
     baselineSource: ctx.baselineSource,
     baselinePeriod: ctx.baselinePeriod,
-    live: live.live,
-    liveReason: live.reason,
-    liveUpdatedAt: live.live ? new Date(live.updatedAt).toISOString() : null,
-    liveSampleSize: live.records.length,
-    liveCarriers: liveFlightsAvailable() ? TRACKED_CARRIERS.length : 0,
+    live,
+    demo,
+    liveReason: demo ? null : real.reason,
+    liveUpdatedAt: new Date(updatedAt).toISOString(),
+    liveSampleSize: records.length,
+    liveCarriers: carriers,
     error: null,
   };
 }

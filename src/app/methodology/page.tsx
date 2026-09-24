@@ -128,9 +128,10 @@ export default function MethodologyPage() {
             monthly with a lag of several months.
           </Term>
           <Term title="Freshness">
-            The interface always shows when the live snapshot was captured. When live data is
+            The interface always shows when the data was ingested. When live data is
             unavailable, stale, or degraded, the product says so and falls back to historical
-            baselines rather than fabricating a live figure.
+            baselines — or to clearly-labeled synthetic demo data — rather than fabricating a
+            live figure.
           </Term>
         </div>
       </Card>

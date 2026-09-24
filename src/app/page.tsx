@@ -87,6 +87,7 @@ export default function Page() {
     routes,
     baselineSource,
     live,
+    demo,
     liveReason,
     liveUpdatedAt,
     liveSampleSize,
@@ -99,11 +100,18 @@ export default function Page() {
         overview={overview}
         baselineSource={baselineSource}
         live={live}
+        demo={demo}
         liveReason={liveReason}
         liveUpdatedAt={liveUpdatedAt}
         liveSampleSize={liveSampleSize}
         liveCarriers={liveCarriers}
       />
+
+      {demo && (
+        <div className="border-b border-pulse-soft bg-pulse-soft px-5 py-2 text-center text-[0.8125rem] text-pulse-ink">
+          Demo data — synthetic sample, not real flights. Real data resumes when the API quota resets.
+        </div>
+      )}
 
       <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
         <Brief />
