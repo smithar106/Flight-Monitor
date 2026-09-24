@@ -16,6 +16,7 @@ interface Context {
   airlines: AirlinePerformance[];
   baselineSource: string;
   baselinePeriod: string;
+  demo: boolean;
 }
 
 function fmtPct(n: number | null): string {
@@ -67,16 +68,16 @@ function buildEvidenceCard(
     const facts: AskEvidence[] = [
       { label: "Airport", value: `${a.airport.name} (${a.airport.iata})` },
       { label: "Disruption score", value: `${a.disruptionScore}/100 — ${statusLabel(a.status)}` },
-      { label: "Flights tracked (live)", value: String(a.metrics.flightsTracked) },
-      { label: "Delay rate (live)", value: fmtPct(a.metrics.delayPct) },
+      { label: "Flights tracked", value: String(a.metrics.flightsTracked) },
+      { label: "Delay rate", value: fmtPct(a.metrics.delayPct) },
       { label: "vs baseline", value: fmtDelta(a.deltaDelayPct) },
       { label: "Cancellation (baseline)", value: fmtPct(a.baseline?.canceledPct ?? null) },
-      { label: "Average delay (live)", value: a.metrics.avgDelayMin != null ? `${a.metrics.avgDelayMin} min` : "n/a" },
+      { label: "Average delay", value: a.metrics.avgDelayMin != null ? `${a.metrics.avgDelayMin} min` : "n/a" },
     ];
     const reasons = a.factors.join("; ").toLowerCase();
     const narrative =
       `${a.airport.iata} is currently rated ${statusLabel(a.status).toLowerCase()} with a disruption score of ${a.disruptionScore}/100. ` +
-      `Its live delay rate is ${fmtPct(a.metrics.delayPct)} (${fmtDelta(a.deltaDelayPct)} vs its ${fmtPct(a.baseline?.delayPct ?? null)} baseline) ` +
+      `Its delay rate is ${fmtPct(a.metrics.delayPct)} (${fmtDelta(a.deltaDelayPct)} vs its ${fmtPct(a.baseline?.delayPct ?? null)} baseline) ` +
       `with ${a.metrics.flightsTracked} flights tracked. Why: ${reasons}.`;
     return { title: `Status of ${a.airport.iata}`, facts, narrative };
   }
@@ -85,8 +86,8 @@ function buildEvidenceCard(
   if (airline) {
     const facts: AskEvidence[] = [
       { label: "Airline", value: airline.airline.name },
-      { label: "Flights tracked (live)", value: String(airline.flightsTracked) },
-      { label: "Delay rate (live)", value: fmtPct(airline.delayPct) },
+      { label: "Flights tracked", value: String(airline.flightsTracked) },
+      { label: "Delay rate", value: fmtPct(airline.delayPct) },
       { label: "vs baseline", value: fmtDelta(airline.deltaDelayPct) },
     ];
     const band =
@@ -96,7 +97,7 @@ function buildEvidenceCard(
           ? "underperforming the national baseline"
           : "near the national baseline";
     const narrative =
-      `${airline.airline.name} is ${band} with a live delay rate of ${fmtPct(airline.delayPct)}` +
+      `${airline.airline.name} is ${band} with a delay rate of ${fmtPct(airline.delayPct)}` +
       (airline.deltaDelayPct !== null ? ` (${fmtDelta(airline.deltaDelayPct)} vs baseline)` : "") +
       ` and ${airline.flightsTracked} flights tracked.`;
     return { title: `Performance of ${airline.airline.name}`, facts, narrative };
@@ -143,12 +144,12 @@ function buildEvidenceCard(
     const top = ranked.slice(0, 3);
     const facts: AskEvidence[] = top.map((a) => ({
       label: a.airport.iata,
-      value: `${fmtPct(a.metrics.delayPct)} delayed (live)`,
+      value: `${fmtPct(a.metrics.delayPct)} delayed`,
     }));
     const narrative =
-      `Live delay rates are highest at ${top.map((a) => a.airport.iata).join(", ")}, ` +
+      `Delay rates are highest at ${top.map((a) => a.airport.iata).join(", ")}, ` +
       `with ${top[0]?.airport.iata} at ${fmtPct(top[0]?.metrics.delayPct)}. ` +
-      `These are current (live) figures; historical baselines are ${ctx.baselineSource}.`;
+      `These are current figures; historical baselines are ${ctx.baselineSource}.`;
     return { title: "Why delays are elevated", facts, narrative };
   }
 
@@ -160,10 +161,10 @@ function buildEvidenceCard(
     const top = ranked.slice(0, 3);
     const facts: AskEvidence[] = top.map((a) => ({
       label: a.airline.name,
-      value: `${fmtPct(a.delayPct)} delay (live)`,
+      value: `${fmtPct(a.delayPct)} delay`,
     }));
     const narrative =
-      `The airlines with the lowest live delay rates are ${top.map((a) => a.airline.name).join(", ")}. ` +
+      `The airlines with the lowest delay rates are ${top.map((a) => a.airline.name).join(", ")}. ` +
       `${top[0]?.airline.name} leads at ${fmtPct(top[0]?.delayPct)}.`;
     return { title: "Best-performing airlines", facts, narrative };
   }
@@ -171,16 +172,16 @@ function buildEvidenceCard(
   // --- Default: national snapshot -------------------------------------
   const facts: AskEvidence[] = [
     { label: "Status", value: o.statusLabel },
-    { label: "Flights tracked (live)", value: String(o.flightsTracked) },
-    { label: "Delayed (live)", value: fmtPct(o.delayPct) },
+    { label: "Flights tracked", value: String(o.flightsTracked) },
+    { label: "Delayed", value: fmtPct(o.delayPct) },
     { label: "Canceled (baseline)", value: fmtPct(o.canceledPctBaseline) },
     { label: "Airports elevated/high/severe", value: `${o.airportsElevated} / ${o.airportsHigh} / ${o.airportsSevere}` },
   ];
   const worst = ctx.airports[0];
   const narrative =
-    `U.S. aviation is ${o.statusLabel.toLowerCase()} with ${o.flightsTracked} flights tracked live. ` +
+    `U.S. aviation is ${o.statusLabel.toLowerCase()} with ${o.flightsTracked} flights tracked. ` +
     `The most disrupted airport is ${worst?.airport.iata} at ${worst?.disruptionScore}/100. ` +
-    `Live delay is ${fmtPct(o.delayPct)}.`;
+    `Delay is ${fmtPct(o.delayPct)}.`;
   return { title: "National operations snapshot", facts, narrative };
 }
 
@@ -189,7 +190,7 @@ Rules:
 - Answer using ONLY the facts provided. Never invent statistics, airports, or airlines.
 - If the provided facts do not answer the question, say so plainly.
 - Be concise (2-4 sentences). Mention the numbers.
-- "live" figures are current flight status; "baseline" figures are historical norms.
+- "demo" figures are synthetic sample data, not real flights — say so plainly. "yesterday" figures are actual results from the previous day; "baseline" figures are historical norms.
 - Do not add caveats about being an AI.`;
 
 export async function askFlightPulse(
@@ -199,7 +200,8 @@ export async function askFlightPulse(
   const card = buildEvidenceCard(ctx, question);
 
   const factsBlock = card.facts.map((f) => `${f.label}: ${f.value}`).join("\n");
-  const user = `Question: ${question}\n\nRelevant data:\n${factsBlock}\n\nAnswer the question using only this data.`;
+  const demoHint = ctx.demo ? "Note: this is synthetic demo data, not real flights.\n\n" : "";
+  const user = `${demoHint}Question: ${question}\n\nRelevant data:\n${factsBlock}\n\nAnswer the question using only this data.`;
 
   const answer = await generateText(SYSTEM, user, 500, 0.2);
   if (answer) {

@@ -18,6 +18,7 @@ function context() {
     airlines,
     baselineSource: "sample (demo)",
     baselinePeriod: "sample",
+    demo: false,
   };
 }
 

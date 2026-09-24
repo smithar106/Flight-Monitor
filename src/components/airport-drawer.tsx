@@ -110,7 +110,7 @@ export function AirportDrawer({
               </div>
               {!a.metrics.live && (
                 <p className="mt-2 text-[0.75rem] text-ink-faint">
-                  Live sample too small to report percentages for this airport.
+                  Sample too small to report percentages for this airport.
                 </p>
               )}
             </div>

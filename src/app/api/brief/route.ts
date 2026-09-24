@@ -12,6 +12,7 @@ export async function GET() {
     airlines: ctx.airlines,
     baselineSource: ctx.baselineSource,
     baselinePeriod: ctx.baselinePeriod,
+    demo: ctx.demo,
   });
   return NextResponse.json(brief);
 }

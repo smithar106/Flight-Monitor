@@ -25,6 +25,7 @@ export async function POST(req: Request) {
       airlines: ctx.airlines,
       baselineSource: ctx.baselineSource,
       baselinePeriod: ctx.baselinePeriod,
+      demo: ctx.demo,
     },
     question
   );

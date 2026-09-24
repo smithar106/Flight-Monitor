@@ -14,6 +14,7 @@ interface Context {
   airlines: AirlinePerformance[];
   baselineSource: string;
   baselinePeriod: string;
+  demo: boolean;
 }
 
 function ref(label: string, value: string): BriefReference {
@@ -31,7 +32,8 @@ function fmtDelta(n: number | null): string {
 
 function buildFacts(ctx: Context): string {
   const o = ctx.overview;
-  const live = o.live;
+  const live = o.live && !ctx.demo;
+  const demo = ctx.demo;
   const top = ctx.airports.slice(0, 5);
 
   const topAirports = top
@@ -56,12 +58,16 @@ function buildFacts(ctx: Context): string {
 
   return [
     `National status: ${o.statusLabel.toUpperCase()} (${o.status}).`,
-    live
-      ? `Yesterday's flights: ${o.flightsTracked} flights across major U.S. carriers.`
-      : `No flight data (monthly request limit reached); showing historical baselines.`,
-    live
-      ? `Yesterday's performance: on-time ${fmtPct(o.onTimePct)}, delayed ${fmtPct(o.delayPct)}${fmtDelta(o.delayDeltaPct)}, average delay ${o.avgDelayMin ?? "n/a"} min.`
-      : `Baseline performance: on-time ${fmtPct(o.onTimePctBaseline)}, delayed ${fmtPct(o.delayPctBaseline)}, average delay ${o.avgDelayMinBaseline ?? "n/a"} min.`,
+    demo
+      ? `Demo data: ${o.flightsTracked} synthetic flights across major U.S. carriers.`
+      : live
+        ? `Yesterday's flights: ${o.flightsTracked} flights across major U.S. carriers.`
+        : `No flight data (monthly request limit reached); showing historical baselines.`,
+    demo
+      ? `Demo performance: on-time ${fmtPct(o.onTimePct)}, delayed ${fmtPct(o.delayPct)}${fmtDelta(o.delayDeltaPct)}, average delay ${o.avgDelayMin ?? "n/a"} min.`
+      : live
+        ? `Yesterday's performance: on-time ${fmtPct(o.onTimePct)}, delayed ${fmtPct(o.delayPct)}${fmtDelta(o.delayDeltaPct)}, average delay ${o.avgDelayMin ?? "n/a"} min.`
+        : `Baseline performance: on-time ${fmtPct(o.onTimePctBaseline)}, delayed ${fmtPct(o.delayPctBaseline)}, average delay ${o.avgDelayMinBaseline ?? "n/a"} min.`,
     `Historical cancellation rate: ${fmtPct(o.canceledPctBaseline)} (baseline).`,
     `Airports elevated: ${o.airportsElevated}, high: ${o.airportsHigh}, severe: ${o.airportsSevere} (of ${o.totalAirports} tracked).`,
     ``,
@@ -78,7 +84,7 @@ const SYSTEM = `You write concise operations briefs for Flight Pulse, a U.S. fli
 Rules:
 - Explain ONLY the numbers provided in the context. Never invent statistics, airports, or airlines.
 - If a number is "n/a" or missing, do not discuss it.
-- "Yesterday's" figures are actual results from the previous day; "baseline" figures are historical norms. Preserve that distinction.
+- "Demo data" is synthetic sample data, not real flights — say so plainly. "Yesterday's" figures are actual results from the previous day; "baseline" figures are historical norms. Preserve that distinction.
 - Write 3-5 sentences of tight, journalistic prose plus a short "What to watch" line.
 - Use airport IATA codes with city names on first mention.
 - Do not use bullet points. Return plain prose.`;
@@ -98,16 +104,18 @@ function templateBody(ctx: Context): string {
 
   const parts: string[] = [];
   parts.push(
-    `National conditions are ${o.statusLabel.toLowerCase()} with ${o.flightsTracked} flights tracked in the live sample.`
+    ctx.demo
+      ? `National conditions are ${o.statusLabel.toLowerCase()} based on ${o.flightsTracked} synthetic demo flights.`
+      : `National conditions are ${o.statusLabel.toLowerCase()} with ${o.flightsTracked} flights tracked in yesterday's sample.`
   );
   if (o.delayPct !== null) {
     parts.push(
-      `Live delay is ${fmtPct(o.delayPct)}${fmtDelta(o.delayDeltaPct)}.`
+      `${ctx.demo ? "Demo delay" : "Delay"} is ${fmtPct(o.delayPct)}${fmtDelta(o.delayDeltaPct)}.`
     );
   }
   if (worst) {
     parts.push(
-      `The most disrupted airport is ${worst.airport.iata} (${worst.airport.city}) at ${worst.disruptionScore}/100 (${statusLabel(worst.status)}), with a live delay rate of ${fmtPct(worst.metrics.delayPct)} against a ${fmtPct(worst.baseline?.delayPct ?? null)} baseline.`
+      `The most disrupted airport is ${worst.airport.iata} (${worst.airport.city}) at ${worst.disruptionScore}/100 (${statusLabel(worst.status)}), with a delay rate of ${fmtPct(worst.metrics.delayPct)} against a ${fmtPct(worst.baseline?.delayPct ?? null)} baseline.`
     );
   }
   if (second && second !== worst) {
@@ -130,8 +138,8 @@ export async function buildOperationsBrief(ctx: Context): Promise<OperationsBrie
   const facts = buildFacts(ctx);
   const references: BriefReference[] = [
     ref("Status", ctx.overview.statusLabel),
-    ref("Flights tracked (live)", ctx.overview.live ? String(ctx.overview.flightsTracked) : "n/a"),
-    ref(ctx.overview.live ? "Delayed (live)" : "Delayed (baseline)", fmtPct(ctx.overview.live ? ctx.overview.delayPct : ctx.overview.delayPctBaseline)),
+    ref("Flights tracked", ctx.overview.live ? String(ctx.overview.flightsTracked) : "n/a"),
+    ref(ctx.demo ? "Delayed (demo)" : ctx.overview.live ? "Delayed (yesterday)" : "Delayed (baseline)", fmtPct(ctx.overview.live ? ctx.overview.delayPct : ctx.overview.delayPctBaseline)),
     ref("vs baseline", ctx.overview.delayDeltaPct === null ? "n/a" : `${ctx.overview.delayDeltaPct >= 0 ? "+" : ""}${ctx.overview.delayDeltaPct} pts`),
     ref("Canceled (baseline)", fmtPct(ctx.overview.canceledPctBaseline)),
     ref("Baseline source", `${ctx.baselineSource} — ${ctx.baselinePeriod}`),
