@@ -173,9 +173,9 @@ export function Airlines({ airlines }: { airlines: AirlinePerformance[] }) {
 
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-line px-4 py-2.5 text-[0.6875rem] text-ink-faint">
         {anyLive ? (
-          <span>Live sample covers {airlines.filter((a) => a.live).length} of {airlines.length} carriers</span>
+          <span>Yesterday's sample covers {airlines.filter((a) => a.live).length} of {airlines.length} carriers</span>
         ) : (
-          <span className="text-ink-muted">Showing historical baselines · live data paused</span>
+          <span className="text-ink-muted">Showing historical baselines · no data</span>
         )}
         <span className="ml-auto">Δ vs the airline's historical baseline</span>
       </div>

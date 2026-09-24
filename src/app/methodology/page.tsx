@@ -114,13 +114,13 @@ export default function MethodologyPage() {
       <Card className="mt-6 p-6">
         <SectionHeading eyebrow="Sources" title="Data sources & freshness" />
         <div className="divide-y divide-line">
-          <Term title="Live flight status — AviationStack">
-            Real-time per-flight delay data for a small, clearly-labeled sample: the four largest
-            U.S. carriers (United, American, Delta, Southwest), active flights only. This powers
-            live on-time/delay rates and flights-tracked counts. To stay within the free plan's
-            monthly request quota, the sample is refreshed about once a day and the number of
-            upstream requests is persisted and budgeted; when the budget is exhausted the
-            interface says so instead of fabricating a live figure.
+          <Term title="Daily flight data — AviationStack">
+            Actual flight results for the previous day, ingested once a day from three major
+            U.S. carriers (United, American, Delta) and cached for 24 hours. This powers
+            on-time/delay rates, flights-tracked counts, and route corridors. To stay within the
+            free plan's monthly request quota, the ingest runs once daily (~90 requests/month)
+            and the count is persisted and budgeted; when the budget is exhausted the interface
+            says so instead of fabricating a figure.
           </Term>
           <Term title="Historical performance — U.S. BTS">
             The Bureau of Transportation Statistics On-Time Performance data provides the
@@ -138,9 +138,9 @@ export default function MethodologyPage() {
       <Card className="mt-6 p-6">
         <SectionHeading eyebrow="Limits" title="Known limitations" />
         <ul className="space-y-2 text-[0.875rem] leading-relaxed text-ink-muted">
-          <li className="flex gap-2"><span className="text-ink-faint">·</span>Live coverage is a daily snapshot of four major carriers' active flights — a sample, not every U.S. flight.</li>
-          <li className="flex gap-2"><span className="text-ink-faint">·</span>Cancellation figures are historical baselines only; the live sample contains active flights, which are by definition not yet canceled.</li>
-          <li className="flex gap-2"><span className="text-ink-faint">·</span>Live delay is measured by current departure/arrival delay (≥ 15 min) on in-flight flights; airports with too few sampled flights report no live percentage.</li>
+          <li className="flex gap-2"><span className="text-ink-faint">·</span>Data covers the previous day's actual results for three major carriers — a sample, not every U.S. flight.</li>
+          <li className="flex gap-2"><span className="text-ink-faint">·</span>Cancellation figures are historical baselines only; the daily ingest covers landed flights.</li>
+          <li className="flex gap-2"><span className="text-ink-faint">·</span>Delay is measured by actual arrival delay (≥ 15 min); airports with too few flights report no percentage.</li>
           <li className="flex gap-2"><span className="text-ink-faint">·</span>Airline attribution uses the operating carrier; a small number of codeshare/regional flights may be misattributed.</li>
           <li className="flex gap-2"><span className="text-ink-faint">·</span>Trend (improving/worsening) requires recent historical data and is unavailable with the sample baseline.</li>
         </ul>

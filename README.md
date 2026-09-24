@@ -4,7 +4,7 @@
 
 Flight Pulse answers a single question: *what is happening across U.S. aviation today, what is unusual, and why does it matter?*
 
-It combines live air-traffic data, historical flight-performance baselines, deterministic analytics, and a grounded AI reasoning layer into a premium operations-intelligence interface. It is **not** a flight-search or booking product.
+It combines daily flight-performance data, historical flight-performance baselines, deterministic analytics, and a grounded AI reasoning layer into a premium operations-intelligence interface. It is **not** a flight-search or booking product.
 
 ---
 
@@ -12,8 +12,8 @@ It combines live air-traffic data, historical flight-performance baselines, dete
 
 The landing page immediately answers "how is U.S. aviation performing today" with a national status (Normal / Elevated / High / Severe), key metrics, a disruption map, and a ranked list of the most disrupted airports.
 
-- **National overview** — flights tracked, live on-time/delayed rates, average delay, baseline cancellation rate, and airports with elevated disruption, with a data-freshness indicator.
-- **U.S. airport disruption map** — every major U.S. airport plotted and color-coded by severity, with live route corridors between airports; click for a detail drawer.
+- **National overview** — flights tracked, previous-day on-time/delayed rates, average delay, baseline cancellation rate, and airports with elevated disruption, with a data-freshness indicator.
+- **U.S. airport disruption map** — every major U.S. airport plotted and color-coded by severity, with route corridors between airports; click for a detail drawer.
 - **Disruption Score** — an explainable 0–100 composite per airport (see Methodology).
 - **Most disrupted airports** — ranked by normalized performance, not raw volume.
 - **Airline performance** — sortable comparison with the most-delayed carrier highlighted (outperforming / near / underperforming).
@@ -26,7 +26,7 @@ The landing page immediately answers "how is U.S. aviation performing today" wit
 ## Architecture
 
 ```
-Live Flight Status (AviationStack)
+Daily Flight Results (AviationStack)
         ↓
 Normalization layer (src/lib/aviationstack.ts)
         ↓
@@ -51,8 +51,8 @@ The layering is deliberate: **metrics are computed deterministically; the LLM on
 
 ### Data-first, AI-second
 
-- **Live data** (AviationStack): current per-flight delay for a clearly-labeled sample of the four largest U.S. carriers (United, American, Delta, Southwest), active flights only — live on-time/delay rates, flights tracked, and per-airline exposure.
-- **Historical data** (BTS): delay, cancellation, on-time, and average-delay baselines, controlled for airport/airline/season/day-of-week/time-of-day. Cancellation rates are historical only (the live sample contains active flights, which are by definition not yet canceled).
+- **Daily data** (AviationStack): the previous day's actual landed-flight results for three major U.S. carriers (United, American, Delta) — on-time/delay rates, flights tracked, and per-airline exposure, ingested once a day.
+- **Historical data** (BTS): delay, cancellation, on-time, and average-delay baselines, controlled for airport/airline/season/day-of-week/time-of-day. Cancellation rates are historical only (the daily ingest covers landed flights).
 - **Analytics**: the Disruption Score and all comparisons are pure, deterministic functions (unit-tested).
 - **AI**: `DEEPSEEK_API_KEY` powers the Operations Brief and Ask Flight Pulse. The LLM is handed structured facts and forbidden from inventing statistics; the UI surfaces the underlying evidence.
 
@@ -62,10 +62,10 @@ The layering is deliberate: **metrics are computed deterministically; the LLM on
 
 | Source | Role | Access |
 |---|---|---|
-| [AviationStack](https://aviationstack.com) | Live per-flight status & delay (major U.S. carriers) | API key (free tier ~100 req/mo) |
+| [AviationStack](https://aviationstack.com) | Previous-day flight results (3 major U.S. carriers) | API key (free tier ~100 req/mo) |
 | [Bureau of Transportation Statistics](https://www.bts.gov) | Historical On-Time Performance baselines | Public CSV download |
 
-**Data honesty:** live delay figures are current flight status from a *small sample* of the four largest carriers (limited by the API plan's monthly quota), while cancellation figures and all baselines are historical BTS values. The product labels every figure as live or baseline, never presents a baseline as live, and never fabricates a live figure when the sample is too small or the quota is exhausted.
+**Data honesty:** daily delay figures are the previous day's actual results for a *small sample* of three major carriers (limited by the API plan's monthly quota), while cancellation figures and all baselines are historical BTS values. The product labels every figure as daily or baseline, never presents a baseline as daily, and never fabricates a figure when the sample is too small or the quota is exhausted.
 
 A clearly-labeled **sample baseline** (`data/baselines/sample.json`) ships with the repo so the app runs out of the box. Generate a real BTS-derived baseline with:
 
@@ -90,9 +90,9 @@ npm run dev                  # http://localhost:3000
 | Variable | Required | Purpose |
 |---|---|---|
 | `DEEPSEEK_API_KEY` | No | Enables the AI Operations Brief and grounded Ask answers (falls back to deterministic text without it) |
-| `AVIATIONSTACK_API_KEY` | No | Live flight-status data (falls back to baseline-only without it) |
-| `AVIATIONSTACK_CARRIERS` | No | Carriers sampled per refresh (default `UA,AA,DL,WN`) |
-| `AVIATIONSTACK_TTL_MS` | No | Live-data cache TTL (default 24h — daily refresh) |
+| `AVIATIONSTACK_API_KEY` | No | Daily flight data (falls back to baseline-only without it) |
+| `AVIATIONSTACK_CARRIERS` | No | Carriers ingested per run (default `UA,AA,DL`) |
+| `AVIATIONSTACK_TTL_MS` | No | Data cache TTL (default 24h — daily ingest) |
 | `AVIATIONSTACK_MAX_REQUESTS` | No | Persistent monthly request budget (default 90) |
 | `DEEPSEEK_BASE_URL` / `DEEPSEEK_MODEL` | No | DeepSeek endpoint/model overrides |
 
@@ -134,7 +134,7 @@ A reproducible 0–100 composite (see `src/lib/disruption.ts` and `/methodology`
 | Baseline delay rate | up to 40 | baseline delay % (1 pt per 1%, saturates at 40%) |
 | Baseline cancellation rate | up to 20 | baseline cancel % × 8 (saturates at 2.5%) |
 | Baseline average delay | up to 15 | avg delay min ÷ 60 × 15 (saturates at 60 min) |
-| Live deviation | up to 25 | live delay % above baseline, scaled |
+| Live deviation | up to 25 | previous-day delay % above baseline, scaled |
 
 Bands: 0–24 Normal · 25–49 Elevated · 50–74 High · 75–100 Severe.
 
@@ -157,9 +157,9 @@ npm run typecheck  # tsc --noEmit
 
 ## Known limitations
 
-- Live coverage is a daily snapshot of four major carriers' active flights — a sample, not every U.S. flight.
-- Cancellation figures are historical baselines only; the live sample contains active flights, which are by definition not yet canceled.
-- Live delay is measured by current departure/arrival delay (≥ 15 min) on in-flight flights; airports with too few sampled flights report no live percentage.
+- Data covers the previous day's actual results for three major carriers — a sample, not every U.S. flight.
+- Cancellation figures are historical baselines only; the daily ingest covers landed flights.
+- Delay is measured by actual arrival delay (≥ 15 min); airports with too few flights report no percentage.
 - Airline attribution uses the operating carrier; a small number of codeshare/regional flights may be misattributed.
 - Trend (improving/worsening) requires recent historical data and is unavailable with the sample baseline.
 - The sample baseline (`data/baselines/sample.json`) is clearly labeled; replace it with real BTS data via `node scripts/ingest-bts.mjs`.

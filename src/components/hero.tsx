@@ -67,13 +67,13 @@ export function Hero({
           <div className="flex items-center gap-2 text-[0.75rem] text-ink-faint lg:mt-2">
             {live ? (
               <span className="inline-flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-normal animate-pulse-dot" />
-                Live
+                <span className="h-1.5 w-1.5 rounded-full bg-normal" />
+                Yesterday's flights
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 text-elevated">
                 <span className="h-1.5 w-1.5 rounded-full bg-elevated" />
-                Live paused
+                No data
               </span>
             )}
           </div>
@@ -112,14 +112,14 @@ export function Hero({
           {live ? (
             <>
               <span>
-                Live sample · {liveSampleSize} flights across {liveCarriers} carriers · updated{" "}
+                Yesterday's flights · {liveSampleSize} across {liveCarriers} carriers · ingested{" "}
                 {fmtClock(updated)} UTC
               </span>
               <span>Historical baselines · {baselineSource}</span>
             </>
           ) : (
             <span className="font-medium text-elevated">
-              Live data paused{liveReason ? ` — ${liveReason}` : ""}. Showing historical baselines (
+              No data{liveReason ? ` — ${liveReason}` : ""}. Showing historical baselines (
               {baselineSource}).
             </span>
           )}

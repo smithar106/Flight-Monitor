@@ -7,7 +7,7 @@ export function Footer() {
         <div>
           <div className="text-sm font-medium text-ink">Flight Pulse</div>
           <p className="mt-1 max-w-md text-[0.8125rem] leading-relaxed text-ink-faint">
-            U.S. flight operations intelligence. Live flight status via
+            U.S. flight operations intelligence. Daily flight performance via
             AviationStack; historical performance baselines via the U.S. Bureau
             of Transportation Statistics.
           </p>

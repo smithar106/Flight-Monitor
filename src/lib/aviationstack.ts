@@ -48,7 +48,19 @@ interface RawFlight {
   };
 }
 
-const DEFAULT_CARRIERS = ["UA", "AA", "DL", "WN"];
+const DEFAULT_CARRIERS = ["UA", "AA", "DL"];
+
+// "Yesterday" in US Eastern time (YYYY-MM-DD) — the ingest runs once a day and
+// shows the previous day's actual (landed) results.
+function flightDate(): string {
+  const dtf = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return dtf.format(new Date(Date.now() - 24 * 60 * 60 * 1000));
+}
 
 // Persistent budget file (survives restarts within a deployment).
 const USAGE_FILE = path.join(process.cwd(), "data", ".aviationstack-usage.json");
@@ -147,10 +159,11 @@ function normalize(raw: RawFlight[]): FlightRecord[] {
   return records;
 }
 
-async function fetchCarrierActive(carrierIata: string): Promise<RawFlight[]> {
+async function fetchCarrierYesterday(carrierIata: string): Promise<RawFlight[]> {
   const params = new URLSearchParams({
     access_key: key()!,
-    flight_status: "active",
+    flight_date: flightDate(),
+    flight_status: "landed",
     airline_iata: carrierIata,
     limit: "100",
   });
@@ -227,7 +240,7 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
   try {
     const all: RawFlight[] = [];
     for (const c of carriers()) {
-      const batch = await fetchCarrierActive(c);
+      const batch = await fetchCarrierYesterday(c);
       usage.used += 1;
       all.push(...batch);
     }

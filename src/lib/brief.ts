@@ -38,7 +38,7 @@ function buildFacts(ctx: Context): string {
     .map((a) =>
       live
         ? `${a.airport.iata} (${a.airport.city}): score ${a.disruptionScore}/100 ${a.status}, ` +
-          `live delay ${fmtPct(a.metrics.delayPct)} (baseline ${fmtPct(a.baseline?.delayPct ?? null)})`
+          `delay ${fmtPct(a.metrics.delayPct)} (baseline ${fmtPct(a.baseline?.delayPct ?? null)})`
         : `${a.airport.iata} (${a.airport.city}): score ${a.disruptionScore}/100 ${a.status}, ` +
           `baseline delay ${fmtPct(a.baseline?.delayPct ?? null)}`
     )
@@ -49,7 +49,7 @@ function buildFacts(ctx: Context): string {
     .slice(0, 6)
     .map((a) =>
       live
-        ? `${a.airline.name}: live delay ${fmtPct(a.delayPct)}`
+        ? `${a.airline.name}: delay ${fmtPct(a.delayPct)}`
         : `${a.airline.name}: baseline delay ${fmtPct(a.baselineDelayPct)}`
     )
     .join("\n");
@@ -57,10 +57,10 @@ function buildFacts(ctx: Context): string {
   return [
     `National status: ${o.statusLabel.toUpperCase()} (${o.status}).`,
     live
-      ? `Live sample: ${o.flightsTracked} flights tracked across major U.S. carriers.`
-      : `Live data is paused (monthly request limit reached); showing historical baselines.`,
+      ? `Yesterday's flights: ${o.flightsTracked} flights across major U.S. carriers.`
+      : `No flight data (monthly request limit reached); showing historical baselines.`,
     live
-      ? `Live performance: on-time ${fmtPct(o.onTimePct)}, delayed ${fmtPct(o.delayPct)}${fmtDelta(o.delayDeltaPct)}, average delay ${o.avgDelayMin ?? "n/a"} min.`
+      ? `Yesterday's performance: on-time ${fmtPct(o.onTimePct)}, delayed ${fmtPct(o.delayPct)}${fmtDelta(o.delayDeltaPct)}, average delay ${o.avgDelayMin ?? "n/a"} min.`
       : `Baseline performance: on-time ${fmtPct(o.onTimePctBaseline)}, delayed ${fmtPct(o.delayPctBaseline)}, average delay ${o.avgDelayMinBaseline ?? "n/a"} min.`,
     `Historical cancellation rate: ${fmtPct(o.canceledPctBaseline)} (baseline).`,
     `Airports elevated: ${o.airportsElevated}, high: ${o.airportsHigh}, severe: ${o.airportsSevere} (of ${o.totalAirports} tracked).`,
@@ -68,7 +68,7 @@ function buildFacts(ctx: Context): string {
     `Most disrupted airports (by disruption score):`,
     topAirports,
     ``,
-    live ? `Airlines with live data:` : `Airlines (baseline):`,
+    live ? `Airlines:` : `Airlines (baseline):`,
     airlineLines || "none",
   ].join("\n");
 }
@@ -78,7 +78,7 @@ const SYSTEM = `You write concise operations briefs for Flight Pulse, a U.S. fli
 Rules:
 - Explain ONLY the numbers provided in the context. Never invent statistics, airports, or airlines.
 - If a number is "n/a" or missing, do not discuss it.
-- "Live" figures are current flight status; "baseline" figures are historical norms. Preserve that distinction.
+- "Yesterday's" figures are actual results from the previous day; "baseline" figures are historical norms. Preserve that distinction.
 - Write 3-5 sentences of tight, journalistic prose plus a short "What to watch" line.
 - Use airport IATA codes with city names on first mention.
 - Do not use bullet points. Return plain prose.`;
