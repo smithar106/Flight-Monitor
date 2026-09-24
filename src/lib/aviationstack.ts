@@ -6,8 +6,10 @@
 
 import fs from "fs";
 import path from "path";
+import { z } from "zod";
 import { AIRLINES } from "./airlines";
 import { logRun } from "./mlflow";
+import { logJson, incr } from "./observability";
 
 const BASE = "https://api.aviationstack.com/v1/flights";
 
@@ -48,6 +50,32 @@ interface RawFlight {
     codeshared?: { airline_iata?: string | null; flight_iata?: string | null } | null;
   };
 }
+
+// Runtime schema validation at the API boundary — malformed rows are dropped
+// rather than flowing silently into the analytics.
+const RawFlightSchema = z.object({
+  flight_date: z.string().optional(),
+  flight_status: z.string().optional(),
+  departure: z
+    .object({ iata: z.string().nullable().optional(), delay: z.coerce.number().nullable().optional() })
+    .optional(),
+  arrival: z
+    .object({ iata: z.string().nullable().optional(), delay: z.coerce.number().nullable().optional() })
+    .optional(),
+  airline: z
+    .object({ iata: z.string().nullable().optional(), icao: z.string().nullable().optional() })
+    .optional(),
+  flight: z
+    .object({
+      iata: z.string().nullable().optional(),
+      icao: z.string().nullable().optional(),
+      codeshared: z
+        .object({ airline_iata: z.string().nullable().optional(), flight_iata: z.string().nullable().optional() })
+        .nullable()
+        .optional(),
+    })
+    .optional(),
+});
 
 const DEFAULT_CARRIERS = ["UA", "AA", "DL"];
 
@@ -132,7 +160,17 @@ function normalizeStatus(s: string | undefined): FlightStatus {
 function normalize(raw: RawFlight[]): FlightRecord[] {
   const seen = new Set<string>();
   const records: FlightRecord[] = [];
-  for (const f of raw) {
+  let valid = 0;
+  let invalid = 0;
+  for (const item of raw) {
+    const parsed = RawFlightSchema.safeParse(item);
+    if (!parsed.success) {
+      invalid += 1;
+      continue;
+    }
+    valid += 1;
+    const f = parsed.data;
+
     const marketingAirline = (f.airline?.iata ?? "").toUpperCase() || null;
     const op = f.flight?.codeshared;
     const operatingAirline = (op?.airline_iata ?? "").toUpperCase() || marketingAirline;
@@ -157,6 +195,8 @@ function normalize(raw: RawFlight[]): FlightRecord[] {
       arrivalDelayMin: arrDelay,
     });
   }
+  incr("ingest.records_valid", valid);
+  incr("ingest.records_invalid", invalid);
   return records;
 }
 
@@ -257,6 +297,16 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
       requestCount: usage.used,
     };
     cache = { at: Date.now(), data: result };
+
+    incr("ingest.fetch");
+    incr("ingest.records", records.length);
+    logJson("ingest", {
+      source: "aviationstack",
+      carriers: carriers().join(","),
+      records: records.length,
+      requests: usage.used,
+      latency_ms: Date.now() - start,
+    });
 
     void logRun({
       experiment: "flight-pulse",

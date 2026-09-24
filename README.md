@@ -2,6 +2,8 @@
 
 **U.S. Flight Operations Intelligence**
 
+[![CI](https://github.com/smithar106/Flight-Monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/smithar106/Flight-Monitor/actions/workflows/ci.yml)
+
 Flight Pulse answers a single question: *what is happening across U.S. aviation today, what is unusual, and why does it matter?*
 
 It combines daily flight-performance data, historical flight-performance baselines, deterministic analytics, and a grounded AI reasoning layer into a premium operations-intelligence interface. It is **not** a flight-search or booking product.
@@ -165,16 +167,33 @@ Bands: 0–24 Normal · 25–49 Elevated · 50–74 High · 75–100 Severe.
 
 ## Deployment
 
-A standard Next.js app — deploy anywhere that supports Node (Vercel, Railway, etc.). Set the environment variables above. AviationStack requests are cached server-side (`src/lib/aviationstack.ts`) and budgeted to stay within the plan's monthly limit.
+A standard Next.js app — deploy anywhere that supports Node (Vercel, Railway, etc.). A reference `Dockerfile` is included. Set the environment variables above. AviationStack requests are cached server-side (`src/lib/aviationstack.ts`) and budgeted to stay within the plan's monthly limit.
+
+### Security
+
+The LLM endpoints (`/api/ask`, `/api/brief`) are rate-limited (in-memory) and can be protected with a bearer token by setting `ADMIN_API_KEY`.
+
+### Health & metrics
+
+- `GET /api/health` — status, LLM provider/model, data source, MLflow state.
+- `GET /api/metrics` — Prometheus-style JSON counters (`llm.calls`, `ingest.fetch`, `api.ask`, …).
 
 ---
 
-## Testing
+## Testing & evaluation
 
 ```bash
-npm run test       # Vitest — deterministic analytics, baselines, and agent fallbacks
+npm run test       # Vitest — deterministic analytics, agent fallbacks, and the golden eval suite
 npm run typecheck  # tsc --noEmit
 ```
+
+The **eval harness** (`src/lib/eval.test.ts`) runs a golden question set through the agent (LLM disabled, so it is deterministic and reproducible in CI) and asserts:
+
+1. **Routing** — each question dispatches to the correct tool (`airport`, `airline`, `cancel`, `rank_airports`, `delays`, `rank_airlines`, `national`).
+2. **Correctness** — the retrieved evidence contains the expected fields.
+3. **Groundedness** — the `groundedNumbers(answer, evidence)` helper detects any number in an answer that is absent from its evidence (the hallucination signal). It is unit-tested and reused for optional live-LLM checks.
+
+CI (`.github/workflows/ci.yml`) runs `typecheck → test → build` on every push and PR.
 
 ---
 

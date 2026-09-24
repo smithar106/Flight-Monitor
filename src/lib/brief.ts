@@ -1,5 +1,7 @@
-import { generateText } from "./llm";
+import { generateText, llmCost, llmModel, llmProvider } from "./llm";
 import { logRun } from "./mlflow";
+import { logJson, incr } from "./observability";
+import { BRIEF_SYSTEM } from "./prompts";
 import type {
   AirportPerformance,
   AirlinePerformance,
@@ -80,16 +82,6 @@ function buildFacts(ctx: Context): string {
   ].join("\n");
 }
 
-const SYSTEM = `You write concise operations briefs for Flight Pulse, a U.S. flight operations intelligence product.
-
-Rules:
-- Explain ONLY the numbers provided in the context. Never invent statistics, airports, or airlines.
-- If a number is "n/a" or missing, do not discuss it.
-- "Demo data" is synthetic sample data, not real flights — say so plainly. "Yesterday's" figures are actual results from the previous day; "baseline" figures are historical norms. Preserve that distinction.
-- Write 3-5 sentences of tight, journalistic prose plus a short "What to watch" line.
-- Use airport IATA codes with city names on first mention.
-- Do not use bullet points. Return plain prose.`;
-
 function buildUser(facts: string): string {
   return `Here is the current structured data for U.S. flight operations:\n\n${facts}\n\nWrite the operations brief.`;
 }
@@ -146,9 +138,14 @@ export async function buildOperationsBrief(ctx: Context): Promise<OperationsBrie
     ref("Baseline source", `${ctx.baselineSource} — ${ctx.baselinePeriod}`),
   ];
 
-  const r = await generateText(SYSTEM, buildUser(facts), 700, 0.3);
+  const r = await generateText(BRIEF_SYSTEM.text, buildUser(facts), 700, 0.3);
   const body = r.text;
   const generatedBy: "llm" | "template" = body ? "llm" : "template";
+  const cost = llmCost(r.inputTokens, r.outputTokens);
+
+  incr(generatedBy === "llm" ? "llm.brief" : "llm.brief.fallback");
+  incr("llm.calls");
+  logJson("llm", { kind: "brief", generated_by: generatedBy, demo: ctx.demo, ms: r.ms, input_tokens: r.inputTokens, output_tokens: r.outputTokens, cost_usd: cost });
 
   void logRun({
     experiment: "flight-pulse",
@@ -157,12 +154,16 @@ export async function buildOperationsBrief(ctx: Context): Promise<OperationsBrie
       generated_by: generatedBy,
       demo: String(ctx.demo),
       status: ctx.overview.statusLabel,
+      model: llmModel(),
+      provider: llmProvider(),
+      prompt_version: BRIEF_SYSTEM.version,
     },
     metrics: {
       latency_ms: r.ms,
       input_tokens: r.inputTokens,
       output_tokens: r.outputTokens,
       output_chars: body ? body.length : 0,
+      cost_usd: cost,
     },
     tags: { kind: "brief" },
     status: generatedBy === "llm" ? "FINISHED" : "FAILED",

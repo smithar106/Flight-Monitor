@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 import { getAppContext } from "@/lib/app-state";
 import { askFlightPulse } from "@/lib/agent";
+import { clientIp, isAuthorized, rateLimit } from "@/lib/rate-limit";
+import { incr } from "@/lib/observability";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  if (!isAuthorized(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!rateLimit(`ask:${clientIp(req)}`, 30, 60_000)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   let question: string;
   try {
     const body = (await req.json()) as { question?: string };
@@ -29,5 +38,6 @@ export async function POST(req: Request) {
     },
     question
   );
+  incr("api.ask");
   return NextResponse.json(answer);
 }
