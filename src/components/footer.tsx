@@ -8,8 +8,7 @@ export function Footer() {
           <div className="text-sm font-medium text-ink">Flight Pulse</div>
           <p className="mt-1 max-w-md text-[0.8125rem] leading-relaxed text-ink-faint">
             U.S. flight operations intelligence. Daily flight performance via
-            AviationStack; historical performance baselines via the U.S. Bureau
-            of Transportation Statistics.
+            AviationStack, with historical performance baselines.
           </p>
         </div>
         <div className="flex gap-8 text-[0.8125rem]">
@@ -29,16 +28,6 @@ export function Footer() {
                   className="hover:text-ink"
                 >
                   AviationStack
-                </a>
-              </li>
-              <li>
-                <a
-                  href="https://www.bts.gov"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-ink"
-                >
-                  BTS
                 </a>
               </li>
             </ul>
