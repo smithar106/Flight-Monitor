@@ -26,15 +26,24 @@ async function request(path: string, method: "GET" | "POST", body?: unknown): Pr
 async function ensureExperiment(name: string): Promise<string> {
   const cached = experimentIds.get(name);
   if (cached) return cached;
-  const byName = await request(
-    `/api/2.0/mlflow/experiments/get-by-name?experiment_name=${encodeURIComponent(name)}`,
-    "GET"
-  );
-  let id = byName?.experiment?.experiment_id;
+
+  let id: string | undefined;
+  try {
+    const byName = await request(
+      `/api/2.0/mlflow/experiments/get-by-name?experiment_name=${encodeURIComponent(name)}`,
+      "GET"
+    );
+    id = byName?.experiment?.experiment_id;
+  } catch {
+    // 404 = experiment does not exist yet — fall through to create it.
+  }
+
   if (!id) {
     const created = await request("/api/2.0/mlflow/experiments/create", "POST", { name });
     id = created?.experiment_id;
   }
+
+  if (!id) throw new Error("MLflow experiment create returned no id");
   experimentIds.set(name, id);
   return id;
 }

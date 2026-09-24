@@ -9,6 +9,7 @@ npm-debug.log*
 .DS_Store
 data/raw/
 data/.aviationstack-usage.json
+.mlflow/
 *.log
 
 # playwright-cli artifacts
