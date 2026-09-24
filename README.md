@@ -125,6 +125,29 @@ Without `DEEPSEEK_API_KEY`, both features fall back to deterministic templates b
 
 ---
 
+## Observability (MLflow)
+
+When `MLFLOW_TRACKING_URI` is set, the app logs runs to an MLflow tracking server via its REST API (`src/lib/mlflow.ts`). Telemetry is fire-and-forget and best-effort — it never affects the product if MLflow is unreachable.
+
+Logged under the `flight-pulse` experiment:
+
+| Run | Kind | Captures |
+|---|---|---|
+| `brief-*` | agent | generated_by, demo, status; latency_ms, input/output tokens, output chars |
+| `ask-*` | agent | question, generated_by, demo; latency_ms, tokens, evidence count |
+| `fetch-*` | infra | data source (AviationStack), carriers, date; latency_ms, requests, records, success/fail |
+| `demo-*` | infra | synthetic fallback (source, reason); records, carriers |
+
+Run a local MLflow server:
+
+```bash
+pip install mlflow
+mlflow server --host 0.0.0.0 --port 5000
+# then set MLFLOW_TRACKING_URI=http://localhost:5000
+```
+
+---
+
 ## Disruption Score
 
 A reproducible 0–100 composite (see `src/lib/disruption.ts` and `/methodology`):

@@ -7,6 +7,7 @@
 import fs from "fs";
 import path from "path";
 import { AIRLINES } from "./airlines";
+import { logRun } from "./mlflow";
 
 const BASE = "https://api.aviationstack.com/v1/flights";
 
@@ -237,6 +238,7 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
     };
   }
 
+  const start = Date.now();
   try {
     const all: RawFlight[] = [];
     for (const c of carriers()) {
@@ -246,16 +248,39 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
     }
     writeUsage(usage);
 
+    const records = normalize(all);
     const result: LiveFlightsResult = {
-      records: normalize(all),
+      records,
       live: true,
       reason: null,
       updatedAt: Date.now(),
       requestCount: usage.used,
     };
     cache = { at: Date.now(), data: result };
+
+    void logRun({
+      experiment: "flight-pulse",
+      runName: `fetch-${Date.now()}`,
+      params: { source: "aviationstack", carriers: carriers().join(","), date: flightDate() },
+      metrics: {
+        latency_ms: Date.now() - start,
+        requests: usage.used,
+        records: records.length,
+      },
+      tags: { kind: "infra" },
+      status: "FINISHED",
+    });
+
     return result;
   } catch (e) {
+    void logRun({
+      experiment: "flight-pulse",
+      runName: `fetch-${Date.now()}`,
+      params: { source: "aviationstack", carriers: carriers().join(",") },
+      metrics: { latency_ms: Date.now() - start, requests: usage.used, records: 0 },
+      tags: { kind: "infra", error: e instanceof Error ? e.message : "unknown" },
+      status: "FAILED",
+    });
     return {
       records: cache?.data.records ?? [],
       live: false,

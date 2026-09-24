@@ -4,6 +4,7 @@ import {
   liveFlightsAvailable,
 } from "./aviationstack";
 import { generateSyntheticFlights, SYNTHETIC_CARRIERS } from "./synthetic";
+import { logRun } from "./mlflow";
 import {
   buildAllAirports,
   buildNationalOverview,
@@ -51,6 +52,14 @@ export async function getAppContext(): Promise<AppContext> {
     live = true;
     updatedAt = Date.now();
     carriers = SYNTHETIC_CARRIERS;
+    void logRun({
+      experiment: "flight-pulse",
+      runName: `demo-${Date.now()}`,
+      params: { source: "synthetic", carriers: String(carriers), fallback_reason: real.reason ?? "none" },
+      metrics: { records: records.length, carriers },
+      tags: { kind: "infra", demo: "true" },
+      status: "FINISHED",
+    });
   }
 
   const airports = buildAllAirports(records);

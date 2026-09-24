@@ -1,4 +1,5 @@
 import { generateText } from "./llm";
+import { logRun } from "./mlflow";
 import type {
   AirportPerformance,
   AirlinePerformance,
@@ -145,7 +146,28 @@ export async function buildOperationsBrief(ctx: Context): Promise<OperationsBrie
     ref("Baseline source", `${ctx.baselineSource} — ${ctx.baselinePeriod}`),
   ];
 
-  const body = await generateText(SYSTEM, buildUser(facts), 700, 0.3);
+  const r = await generateText(SYSTEM, buildUser(facts), 700, 0.3);
+  const body = r.text;
+  const generatedBy: "llm" | "template" = body ? "llm" : "template";
+
+  void logRun({
+    experiment: "flight-pulse",
+    runName: `brief-${Date.now()}`,
+    params: {
+      generated_by: generatedBy,
+      demo: String(ctx.demo),
+      status: ctx.overview.statusLabel,
+    },
+    metrics: {
+      latency_ms: r.ms,
+      input_tokens: r.inputTokens,
+      output_tokens: r.outputTokens,
+      output_chars: body ? body.length : 0,
+    },
+    tags: { kind: "brief" },
+    status: generatedBy === "llm" ? "FINISHED" : "FAILED",
+  });
+
   if (body) {
     return {
       headline: `National conditions: ${ctx.overview.statusLabel}`,

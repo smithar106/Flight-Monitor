@@ -1,6 +1,7 @@
 import { AIRPORTS } from "./airports";
 import { AIRLINES } from "./airlines";
 import { generateText } from "./llm";
+import { logRun } from "./mlflow";
 import { statusLabel } from "./disruption";
 import type {
   AirportPerformance,
@@ -203,7 +204,30 @@ export async function askFlightPulse(
   const demoHint = ctx.demo ? "Note: this is synthetic demo data, not real flights.\n\n" : "";
   const user = `${demoHint}Question: ${question}\n\nRelevant data:\n${factsBlock}\n\nAnswer the question using only this data.`;
 
-  const answer = await generateText(SYSTEM, user, 500, 0.2);
+  const r = await generateText(SYSTEM, user, 500, 0.2);
+  const answer = r.text;
+  const generatedBy: "llm" | "template" = answer ? "llm" : "template";
+
+  void logRun({
+    experiment: "flight-pulse",
+    runName: `ask-${Date.now()}`,
+    params: {
+      question: question.slice(0, 200),
+      generated_by: generatedBy,
+      demo: String(ctx.demo),
+      title: card.title,
+    },
+    metrics: {
+      latency_ms: r.ms,
+      input_tokens: r.inputTokens,
+      output_tokens: r.outputTokens,
+      output_chars: answer ? answer.length : 0,
+      evidence_count: card.facts.length,
+    },
+    tags: { kind: "ask" },
+    status: generatedBy === "llm" ? "FINISHED" : "FAILED",
+  });
+
   if (answer) {
     return {
       answer,

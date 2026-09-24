@@ -8,14 +8,24 @@ export function llmAvailable(): boolean {
   return Boolean(process.env.DEEPSEEK_API_KEY);
 }
 
+export interface LlmResult {
+  text: string | null;
+  ms: number;
+  inputTokens: number;
+  outputTokens: number;
+}
+
 export async function generateText(
   system: string,
   user: string,
   maxTokens = 600,
   temperature = 0.2
-): Promise<string | null> {
+): Promise<LlmResult> {
   const key = process.env.DEEPSEEK_API_KEY;
-  if (!key) return null;
+  const start = Date.now();
+  if (!key) {
+    return { text: null, ms: 0, inputTokens: 0, outputTokens: 0 };
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30_000);
@@ -37,14 +47,22 @@ export async function generateText(
         max_tokens: maxTokens,
       }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      return { text: null, ms: Date.now() - start, inputTokens: 0, outputTokens: 0 };
+    }
     const data = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
     };
     const content = data.choices?.[0]?.message?.content?.trim();
-    return content && content.length > 0 ? content : null;
+    return {
+      text: content && content.length > 0 ? content : null,
+      ms: Date.now() - start,
+      inputTokens: data.usage?.prompt_tokens ?? 0,
+      outputTokens: data.usage?.completion_tokens ?? 0,
+    };
   } catch {
-    return null;
+    return { text: null, ms: Date.now() - start, inputTokens: 0, outputTokens: 0 };
   } finally {
     clearTimeout(timer);
   }
