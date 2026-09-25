@@ -1,16 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import type { AppContext } from "@/lib/app-state";
 import type { AirportPerformance } from "@/lib/types";
 import { Hero } from "@/components/hero";
-import { MapView } from "@/components/map";
 import { Ranking } from "@/components/ranking";
 import { Airlines } from "@/components/airlines";
 import { Brief } from "@/components/brief";
 import { Ask } from "@/components/ask";
 import { AirportDrawer } from "@/components/airport-drawer";
 import { Card, SectionHeading } from "@/components/ui";
+
+// Lazy-load the map (mapbox-gl is heavy) so the initial page stays fast.
+const MapView = dynamic(
+  () => import("@/components/map").then((m) => m.MapView),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[480px] w-full animate-pulse rounded-lg bg-surface-3" />
+    ),
+  }
+);
 
 function Skeleton() {
   return (

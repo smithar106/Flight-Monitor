@@ -3,17 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { geoAlbersUsa, geoPath, geoGraticule10 } from "d3-geo";
 import { feature } from "topojson-client";
-import type { AirportPerformance, Route } from "@/lib/types";
+import type { AirportPerformance } from "@/lib/types";
 import { STATUS_META } from "@/lib/format";
+import { MapboxMap, type MapProps } from "./mapbox-map";
 
 const WIDTH = 960;
 const HEIGHT = 560;
-
-interface Props {
-  airports: AirportPerformance[];
-  routes: Route[];
-  onSelect: (a: AirportPerformance) => void;
-}
 
 function arcPath(x1: number, y1: number, x2: number, y2: number): string {
   const mx = (x1 + x2) / 2;
@@ -26,7 +21,7 @@ function arcPath(x1: number, y1: number, x2: number, y2: number): string {
   return `M ${x1} ${y1} Q ${mx} ${cy} ${x2} ${y2}`;
 }
 
-export function MapView({ airports, routes, onSelect }: Props) {
+export function SvgMap({ airports, routes, onSelect }: MapProps) {
   const [nation, setNation] = useState<any>(null);
   const [hovered, setHovered] = useState<AirportPerformance | null>(null);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
@@ -178,4 +173,11 @@ export function MapView({ airports, routes, onSelect }: Props) {
       )}
     </div>
   );
+}
+
+export function MapView(props: MapProps) {
+  if (process.env.NEXT_PUBLIC_MAPBOX_TOKEN) {
+    return <MapboxMap {...props} />;
+  }
+  return <SvgMap {...props} />;
 }

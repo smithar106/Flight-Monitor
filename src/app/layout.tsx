@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, IBM_Plex_Mono } from "next/font/google";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import "mapbox-gl/dist/mapbox-gl.css";
 import "./globals.css";
 
 const inter = Inter({

@@ -92,6 +92,7 @@ npm run dev                  # http://localhost:3000
 | Variable | Required | Purpose |
 |---|---|---|
 | `DEEPSEEK_API_KEY` | No | Enables the AI Operations Brief and grounded Ask answers (falls back to deterministic text without it) |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | No | Enables the interactive Mapbox map (falls back to a bundled SVG map without it) |
 | `AVIATIONSTACK_API_KEY` | No | Daily flight data (falls back to baseline-only without it) |
 | `AVIATIONSTACK_CARRIERS` | No | Carriers ingested per run (default `UA,AA,DL`) |
 | `AVIATIONSTACK_TTL_MS` | No | Data cache TTL (default 24h — daily ingest) |
