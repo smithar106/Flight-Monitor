@@ -14,7 +14,7 @@ import { Card, SectionHeading } from "@/components/ui";
 
 // Lazy-load the map (mapbox-gl is heavy) so the initial page stays fast.
 const MapView = dynamic(
-  () => import("@/components/map").then((m) => m.MapView),
+  () => import("@/components/mapbox-map").then((m) => m.MapboxMap),
   {
     ssr: false,
     loading: () => (

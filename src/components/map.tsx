@@ -3,9 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { geoAlbersUsa, geoPath, geoGraticule10 } from "d3-geo";
 import { feature } from "topojson-client";
-import type { AirportPerformance } from "@/lib/types";
+import type { AirportPerformance, Route } from "@/lib/types";
 import { STATUS_META } from "@/lib/format";
-import { MapboxMap, type MapProps } from "./mapbox-map";
+
+export interface MapProps {
+  airports: AirportPerformance[];
+  routes: Route[];
+  onSelect: (a: AirportPerformance) => void;
+}
 
 const WIDTH = 960;
 const HEIGHT = 560;
@@ -173,11 +178,4 @@ export function SvgMap({ airports, routes, onSelect }: MapProps) {
       )}
     </div>
   );
-}
-
-export function MapView(props: MapProps) {
-  if (process.env.NEXT_PUBLIC_MAPBOX_TOKEN) {
-    return <MapboxMap {...props} />;
-  }
-  return <SvgMap {...props} />;
 }

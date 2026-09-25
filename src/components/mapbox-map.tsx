@@ -1,17 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import type { AirportPerformance, Route } from "@/lib/types";
 import { STATUS_META } from "@/lib/format";
-
-export interface MapProps {
-  airports: AirportPerformance[];
-  routes: Route[];
-  onSelect: (a: AirportPerformance) => void;
-}
-
-mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
+import { SvgMap, type MapProps } from "./map";
 
 function airportGeoJson(airports: AirportPerformance[]): GeoJSON.FeatureCollection {
   return {
@@ -45,7 +38,35 @@ function routeGeoJson(routes: Route[], airports: AirportPerformance[]): GeoJSON.
   return { type: "FeatureCollection", features };
 }
 
-export function MapboxMap({ airports, routes, onSelect }: MapProps) {
+export function MapboxMap(props: MapProps) {
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((c) => active && setToken(c.mapboxToken ?? ""))
+      .catch(() => active && setToken(""));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (token === null) {
+    return <div className="h-[480px] w-full animate-pulse rounded-lg bg-surface-3" />;
+  }
+  if (!token) {
+    return <SvgMap {...props} />;
+  }
+  return <MapboxGl token={token} {...props} />;
+}
+
+function MapboxGl({
+  token,
+  airports,
+  routes,
+  onSelect,
+}: MapProps & { token: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -59,6 +80,7 @@ export function MapboxMap({ airports, routes, onSelect }: MapProps) {
 
   useEffect(() => {
     if (!containerRef.current) return;
+    mapboxgl.accessToken = token;
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
@@ -142,7 +164,7 @@ export function MapboxMap({ airports, routes, onSelect }: MapProps) {
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     const map = mapRef.current;
