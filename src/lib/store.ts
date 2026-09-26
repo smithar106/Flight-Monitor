@@ -64,6 +64,24 @@ function fileKey(name: string, period: string): string {
 
 // --- Public API -------------------------------------------------------------
 
+export async function counterGet(name: string, period: string): Promise<number> {
+  const p = getPool();
+  if (p) {
+    try {
+      await ensureSchema(p);
+      const res = await p.query(
+        "SELECT value FROM budget_counters WHERE name = $1 AND period = $2",
+        [name, period]
+      );
+      return res.rows[0] ? Number(res.rows[0].value) : 0;
+    } catch {
+      // Fall through to the file store on any DB failure.
+    }
+  }
+  const data = readFile();
+  return data[fileKey(name, period)] ?? 0;
+}
+
 export async function counterAdd(
   name: string,
   period: string,
