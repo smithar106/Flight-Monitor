@@ -325,8 +325,8 @@ export async function askFlightPulse(
       evidence_count: card.facts.length,
       cost_usd: cost,
     },
-    tags: { kind: "ask", tool: sel.tool },
-    status: generatedBy === "llm" ? "FINISHED" : "FAILED",
+    tags: { kind: "ask", tool: sel.tool, fallback: generatedBy === "llm" ? "false" : "true" },
+    status: "FINISHED",
   });
 
   if (answer) {

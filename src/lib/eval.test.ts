@@ -19,7 +19,7 @@ function buildContext() {
   const records = generateSyntheticFlights();
   const airports = buildAllAirports(records);
   const overview = buildNationalOverview(records, airports, true, Date.now());
-  const airlines = buildAirlinePerformance(records, true);
+  const airlines = buildAirlinePerformance(records);
   return {
     overview,
     airports,

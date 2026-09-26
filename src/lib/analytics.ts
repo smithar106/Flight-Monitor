@@ -306,8 +306,7 @@ export function buildNationalOverview(
 }
 
 export function buildAirlinePerformance(
-  records: FlightRecord[],
-  live: boolean
+  records: FlightRecord[]
 ): AirlinePerformance[] {
   const { airlines: aggs } = aggregate(records);
 

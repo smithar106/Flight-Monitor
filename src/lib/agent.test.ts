@@ -11,7 +11,7 @@ function context() {
   const records: FlightRecord[] = [];
   const airports = buildAllAirports(records);
   const overview = buildNationalOverview(records, airports, false, Date.now());
-  const airlines = buildAirlinePerformance(records, false);
+  const airlines = buildAirlinePerformance(records);
   return {
     overview,
     airports,

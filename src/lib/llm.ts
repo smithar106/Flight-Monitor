@@ -1,6 +1,8 @@
 // Provider-agnostic LLM client (DeepSeek / Anthropic / OpenAI). Used only for
 // natural-language explanation and tool dispatch. Never used to compute metrics.
 
+import { consumeLlmCall } from "./rate-limit";
+
 type Provider = "deepseek" | "anthropic" | "openai";
 
 interface ChatResult {
@@ -66,6 +68,12 @@ async function chat(
   const key = apiKey();
   const start = Date.now();
   if (!key) return { content: null, ms: 0, inputTokens: 0, outputTokens: 0 };
+
+  // Enforce the monthly cost ceiling at the point of spend. When exhausted, we
+  // return null so callers use their deterministic fallback (no 429, no spend).
+  if (!consumeLlmCall()) {
+    return { content: null, ms: 0, inputTokens: 0, outputTokens: 0 };
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 30_000);

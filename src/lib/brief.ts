@@ -165,8 +165,8 @@ export async function buildOperationsBrief(ctx: Context): Promise<OperationsBrie
       output_chars: body ? body.length : 0,
       cost_usd: cost,
     },
-    tags: { kind: "brief" },
-    status: generatedBy === "llm" ? "FINISHED" : "FAILED",
+    tags: { kind: "brief", fallback: generatedBy === "llm" ? "false" : "true" },
+    status: "FINISHED",
   });
 
   if (body) {

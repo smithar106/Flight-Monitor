@@ -64,7 +64,7 @@ export async function getAppContext(): Promise<AppContext> {
 
   const airports = buildAllAirports(records);
   const overview = buildNationalOverview(records, airports, true, updatedAt);
-  const airlines = buildAirlinePerformance(records, true);
+  const airlines = buildAirlinePerformance(records);
   const routes = buildRoutes(records);
   const ctx = dataContext();
 

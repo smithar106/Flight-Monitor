@@ -77,7 +77,7 @@ describe("analytics", () => {
   });
 
   it("builds airline performance for all carriers", () => {
-    const list = buildAirlinePerformance([], false);
+    const list = buildAirlinePerformance([]);
     expect(list).toHaveLength(12);
     expect(list[0].airline.name).toBeTruthy();
   });
