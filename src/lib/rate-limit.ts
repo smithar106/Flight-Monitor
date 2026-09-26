@@ -7,7 +7,7 @@
 //   - a global bucket (bounds bursts regardless of source IP)
 //   - a persisted monthly call budget (hard cost ceiling, survives restarts)
 
-import { counterAdd, counterGet } from "./store";
+import { counterReserve } from "./store";
 
 const buckets = new Map<string, { count: number; resetAt: number }>();
 const globalBuckets = new Map<string, { count: number; resetAt: number }>();
@@ -84,8 +84,6 @@ function llmMonthlyLimit(): number {
 // LLM invocations (the ask flow may issue two).
 export async function consumeLlmCall(limit = llmMonthlyLimit()): Promise<boolean> {
   const period = new Date().toISOString().slice(0, 7);
-  const used = await counterGet("llm-calls", period);
-  if (used >= limit) return false;
-  await counterAdd("llm-calls", period, 1);
-  return true;
+  const res = await counterReserve("llm-calls", period, 1, limit);
+  return res.allowed;
 }

@@ -8,7 +8,7 @@ import { z } from "zod";
 import { AIRLINES } from "./airlines";
 import { logRun } from "./mlflow";
 import { logJson, incr } from "./observability";
-import { counterAdd, counterGet } from "./store";
+import { counterAdd, counterReserve } from "./store";
 
 const BASE = "https://api.aviationstack.com/v1/flights";
 
@@ -240,20 +240,30 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
 
   const month = new Date().toISOString().slice(0, 7);
   const carrierList = carriers();
-  const used = await counterGet("aviationstack-requests", month);
 
   if (cache && Date.now() - cache.at < ttlMs()) {
     return cache.data;
   }
 
   const needed = carrierList.length;
-  if (used + needed > maxRequestsPerMonth()) {
+  const maxRequests = maxRequestsPerMonth();
+
+  // Atomically reserve this run's request slots (no check-then-increment race).
+  // On failure we release the reservation so a failed ingest doesn't count
+  // against the monthly budget.
+  const reservation = await counterReserve(
+    "aviationstack-requests",
+    month,
+    needed,
+    maxRequests
+  );
+  if (!reservation.allowed) {
     return {
       records: cache?.data.records ?? [],
       live: false,
       reason: "Monthly request budget reached — live data paused until next month",
       updatedAt: cache?.at ?? Date.now(),
-      requestCount: used,
+      requestCount: reservation.value,
     };
   }
 
@@ -264,11 +274,6 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
       const batch = await fetchCarrierYesterday(c);
       all.push(...batch);
     }
-    const requestCount = await counterAdd(
-      "aviationstack-requests",
-      month,
-      carrierList.length
-    );
 
     const records = normalize(all);
     const result: LiveFlightsResult = {
@@ -276,7 +281,7 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
       live: true,
       reason: null,
       updatedAt: Date.now(),
-      requestCount,
+      requestCount: reservation.value,
     };
     cache = { at: Date.now(), data: result };
 
@@ -286,7 +291,7 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
       source: "aviationstack",
       carriers: carrierList.join(","),
       records: records.length,
-      requests: requestCount,
+      requests: reservation.value,
       latency_ms: Date.now() - start,
     });
 
@@ -296,7 +301,7 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
       params: { source: "aviationstack", carriers: carrierList.join(","), date: flightDate() },
       metrics: {
         latency_ms: Date.now() - start,
-        requests: requestCount,
+        requests: reservation.value,
         records: records.length,
       },
       tags: { kind: "infra" },
@@ -305,11 +310,14 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
 
     return result;
   } catch (e) {
+    // Release the reserved slots so a failed ingest is not charged.
+    await counterAdd("aviationstack-requests", month, -needed).catch(() => {});
+
     void logRun({
       experiment: "flight-pulse",
       runName: `fetch-${Date.now()}`,
       params: { source: "aviationstack", carriers: carrierList.join(",") },
-      metrics: { latency_ms: Date.now() - start, requests: used, records: 0 },
+      metrics: { latency_ms: Date.now() - start, requests: reservation.value - needed, records: 0 },
       tags: { kind: "infra", error: e instanceof Error ? e.message : "unknown" },
       status: "FAILED",
     });
@@ -318,7 +326,7 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
       live: false,
       reason: e instanceof Error ? e.message : "AviationStack unavailable",
       updatedAt: cache?.at ?? Date.now(),
-      requestCount: used,
+      requestCount: reservation.value - needed,
     };
   }
 }

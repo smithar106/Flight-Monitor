@@ -64,24 +64,6 @@ function fileKey(name: string, period: string): string {
 
 // --- Public API -------------------------------------------------------------
 
-export async function counterGet(name: string, period: string): Promise<number> {
-  const p = getPool();
-  if (p) {
-    try {
-      await ensureSchema(p);
-      const res = await p.query(
-        "SELECT value FROM budget_counters WHERE name = $1 AND period = $2",
-        [name, period]
-      );
-      return res.rows[0] ? Number(res.rows[0].value) : 0;
-    } catch {
-      // Fall through to the file store on any DB failure.
-    }
-  }
-  const data = readFile();
-  return data[fileKey(name, period)] ?? 0;
-}
-
 export async function counterAdd(
   name: string,
   period: string,
@@ -110,4 +92,59 @@ export async function counterAdd(
   data[key] = next;
   writeFile(data);
   return next;
+}
+
+export interface Reservation {
+  allowed: boolean;
+  value: number;
+}
+
+// Atomically reserves `delta` units against a named counter, succeeding only if
+// the resulting value stays within `limit`. On Postgres this is a single
+// conditional upsert (no check-then-increment race); the file fallback is
+// check-then-add and is intended for single-process local development only.
+export async function counterReserve(
+  name: string,
+  period: string,
+  delta: number,
+  limit: number
+): Promise<Reservation> {
+  const p = getPool();
+  if (p) {
+    try {
+      await ensureSchema(p);
+      const res = await p.query(
+        `INSERT INTO budget_counters (name, period, value)
+         SELECT $1, $2, $3
+         WHERE $3 <= $4
+         ON CONFLICT (name, period)
+         DO UPDATE SET value = budget_counters.value + EXCLUDED.value
+         WHERE budget_counters.value + EXCLUDED.value <= $4
+         RETURNING value`,
+        [name, period, delta, limit]
+      );
+      if (res.rows[0]) {
+        return { allowed: true, value: Number(res.rows[0].value) };
+      }
+      // Denied — read back the current value for reporting.
+      const cur = await p.query(
+        "SELECT value FROM budget_counters WHERE name = $1 AND period = $2",
+        [name, period]
+      );
+      return {
+        allowed: false,
+        value: cur.rows[0] ? Number(cur.rows[0].value) : 0,
+      };
+    } catch {
+      // Fall through to the file store on any DB failure.
+    }
+  }
+  const key = fileKey(name, period);
+  const data = readFile();
+  const current = data[key] ?? 0;
+  if (current + delta > limit) return { allowed: false, value: current };
+  const next = current + delta;
+  data[key] = next;
+  writeFile(data);
+  return { allowed: true, value: next };
 }
