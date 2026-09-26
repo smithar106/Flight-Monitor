@@ -4,12 +4,11 @@
 // so the default is intentionally lean: four carriers, active-only, refreshed
 // about once a day.
 
-import fs from "fs";
-import path from "path";
 import { z } from "zod";
 import { AIRLINES } from "./airlines";
 import { logRun } from "./mlflow";
 import { logJson, incr } from "./observability";
+import { counterAdd, counterGet } from "./store";
 
 const BASE = "https://api.aviationstack.com/v1/flights";
 
@@ -91,9 +90,8 @@ function flightDate(): string {
   return dtf.format(new Date(Date.now() - 24 * 60 * 60 * 1000));
 }
 
-// Persistent budget file (survives restarts within a deployment).
-const USAGE_FILE = path.join(process.cwd(), "data", ".aviationstack-usage.json");
-
+// Persistent budget (Postgres when available, else a JSON file) so the request
+// count survives restarts and redeploys within a deployment.
 function key(): string | null {
   return process.env.AVIATIONSTACK_API_KEY ?? null;
 }
@@ -121,25 +119,6 @@ function ttlMs(): number {
     10
   );
   return Number.isFinite(n) && n > 0 ? n : 24 * 60 * 60 * 1000;
-}
-
-function readUsage(): { month: string; used: number } {
-  try {
-    const raw = fs.readFileSync(USAGE_FILE, "utf-8");
-    const parsed = JSON.parse(raw) as { month?: string; used?: number };
-    return { month: parsed.month ?? "", used: parsed.used ?? 0 };
-  } catch {
-    return { month: "", used: 0 };
-  }
-}
-
-function writeUsage(usage: { month: string; used: number }): void {
-  try {
-    fs.mkdirSync(path.dirname(USAGE_FILE), { recursive: true });
-    fs.writeFileSync(USAGE_FILE, JSON.stringify(usage));
-  } catch {
-    /* best-effort */
-  }
 }
 
 let cache: { at: number; data: LiveFlightsResult } | null = null;
@@ -260,33 +239,36 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
   }
 
   const month = new Date().toISOString().slice(0, 7);
-  let usage = readUsage();
-  if (usage.month !== month) usage = { month, used: 0 };
+  const carrierList = carriers();
+  const used = await counterGet("aviationstack-requests", month);
 
   if (cache && Date.now() - cache.at < ttlMs()) {
     return cache.data;
   }
 
-  const needed = carriers().length;
-  if (usage.used + needed > maxRequestsPerMonth()) {
+  const needed = carrierList.length;
+  if (used + needed > maxRequestsPerMonth()) {
     return {
       records: cache?.data.records ?? [],
       live: false,
       reason: "Monthly request budget reached — live data paused until next month",
       updatedAt: cache?.at ?? Date.now(),
-      requestCount: usage.used,
+      requestCount: used,
     };
   }
 
   const start = Date.now();
   try {
     const all: RawFlight[] = [];
-    for (const c of carriers()) {
+    for (const c of carrierList) {
       const batch = await fetchCarrierYesterday(c);
-      usage.used += 1;
       all.push(...batch);
     }
-    writeUsage(usage);
+    const requestCount = await counterAdd(
+      "aviationstack-requests",
+      month,
+      carrierList.length
+    );
 
     const records = normalize(all);
     const result: LiveFlightsResult = {
@@ -294,7 +276,7 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
       live: true,
       reason: null,
       updatedAt: Date.now(),
-      requestCount: usage.used,
+      requestCount,
     };
     cache = { at: Date.now(), data: result };
 
@@ -302,19 +284,19 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
     incr("ingest.records", records.length);
     logJson("ingest", {
       source: "aviationstack",
-      carriers: carriers().join(","),
+      carriers: carrierList.join(","),
       records: records.length,
-      requests: usage.used,
+      requests: requestCount,
       latency_ms: Date.now() - start,
     });
 
     void logRun({
       experiment: "flight-pulse",
       runName: `fetch-${Date.now()}`,
-      params: { source: "aviationstack", carriers: carriers().join(","), date: flightDate() },
+      params: { source: "aviationstack", carriers: carrierList.join(","), date: flightDate() },
       metrics: {
         latency_ms: Date.now() - start,
-        requests: usage.used,
+        requests: requestCount,
         records: records.length,
       },
       tags: { kind: "infra" },
@@ -326,8 +308,8 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
     void logRun({
       experiment: "flight-pulse",
       runName: `fetch-${Date.now()}`,
-      params: { source: "aviationstack", carriers: carriers().join(",") },
-      metrics: { latency_ms: Date.now() - start, requests: usage.used, records: 0 },
+      params: { source: "aviationstack", carriers: carrierList.join(",") },
+      metrics: { latency_ms: Date.now() - start, requests: used, records: 0 },
       tags: { kind: "infra", error: e instanceof Error ? e.message : "unknown" },
       status: "FAILED",
     });
@@ -336,7 +318,7 @@ export async function getLiveFlights(): Promise<LiveFlightsResult> {
       live: false,
       reason: e instanceof Error ? e.message : "AviationStack unavailable",
       updatedAt: cache?.at ?? Date.now(),
-      requestCount: usage.used,
+      requestCount: used,
     };
   }
 }

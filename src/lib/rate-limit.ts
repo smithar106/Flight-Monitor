@@ -7,8 +7,7 @@
 //   - a global bucket (bounds bursts regardless of source IP)
 //   - a persisted monthly call budget (hard cost ceiling, survives restarts)
 
-import fs from "fs";
-import path from "path";
+import { counterAdd, counterGet } from "./store";
 
 const buckets = new Map<string, { count: number; resetAt: number }>();
 const globalBuckets = new Map<string, { count: number; resetAt: number }>();
@@ -73,47 +72,20 @@ export function isAuthorized(req: Request): boolean {
 //
 // Enforced at the point of LLM spend (llm.ts), so reaching the ceiling degrades
 // gracefully to the deterministic fallback rather than erroring the request.
-
-const USAGE_FILE = path.join(process.cwd(), "data", ".llm-usage.json");
+// Persisted via the counter store (Postgres when available, else a JSON file).
 
 function llmMonthlyLimit(): number {
   const n = parseInt(process.env.LLM_MAX_MONTHLY_CALLS ?? "20000", 10);
   return Number.isFinite(n) && n > 0 ? n : 20000;
 }
 
-function readUsage(): { month: string; calls: number } {
-  try {
-    const raw = JSON.parse(fs.readFileSync(USAGE_FILE, "utf-8")) as {
-      month?: string;
-      calls?: number;
-    };
-    return { month: raw.month ?? "", calls: raw.calls ?? 0 };
-  } catch {
-    return { month: "", calls: 0 };
-  }
-}
-
-function writeUsage(u: { month: string; calls: number }): void {
-  try {
-    fs.mkdirSync(path.dirname(USAGE_FILE), { recursive: true });
-    fs.writeFileSync(USAGE_FILE, JSON.stringify(u));
-  } catch {
-    /* best-effort */
-  }
-}
-
-// Atomically increments the monthly budget. Returns true when the call is
-// allowed and false when the budget is exhausted. Counts individual LLM
-// invocations (the ask flow may issue two).
-export function consumeLlmCall(limit = llmMonthlyLimit()): boolean {
-  const month = new Date().toISOString().slice(0, 7);
-  const u = readUsage();
-  const current = u.month === month ? u : { month, calls: 0 };
-  if (current.calls >= limit) {
-    if (u.month !== month) writeUsage(current);
-    return false;
-  }
-  current.calls += 1;
-  writeUsage(current);
+// Atomically reserves one call against the monthly budget. Returns true when
+// the call is allowed and false when the budget is exhausted. Counts individual
+// LLM invocations (the ask flow may issue two).
+export async function consumeLlmCall(limit = llmMonthlyLimit()): Promise<boolean> {
+  const period = new Date().toISOString().slice(0, 7);
+  const used = await counterGet("llm-calls", period);
+  if (used >= limit) return false;
+  await counterAdd("llm-calls", period, 1);
   return true;
 }

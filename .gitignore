@@ -10,6 +10,7 @@ npm-debug.log*
 data/raw/
 data/.aviationstack-usage.json
 data/.llm-usage.json
+data/.counters.json
 .mlflow/
 *.log
 

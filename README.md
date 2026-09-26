@@ -97,6 +97,10 @@ npm run dev                  # http://localhost:3000
 | `AVIATIONSTACK_CARRIERS` | No | Carriers ingested per run (default `UA,AA,DL`) |
 | `AVIATIONSTACK_TTL_MS` | No | Data cache TTL (default 24h — daily ingest) |
 | `AVIATIONSTACK_MAX_REQUESTS` | No | Persistent monthly request budget (default 90) |
+| `LLM_MAX_MONTHLY_CALLS` | No | Monthly LLM call ceiling (default 20000) |
+| `DATABASE_URL` | No | Postgres connection string for durable budget counters (falls back to a local JSON file without it) |
+| `PG_SSL` | No | Set `true` to enable SSL for Postgres (recommended for managed providers) |
+| `ADMIN_API_KEY` | No | Protects `/api/ask`, `/api/brief`, and `/api/metrics` behind a bearer token |
 | `DEEPSEEK_BASE_URL` / `DEEPSEEK_MODEL` | No | DeepSeek endpoint/model overrides |
 
 ### Scripts
@@ -170,7 +174,7 @@ Bands: 0–24 Normal · 25–49 Elevated · 50–74 High · 75–100 Severe.
 
 A standard Next.js app — deploy anywhere that supports Node (Vercel, Railway, etc.). A reference `Dockerfile` is included. Set the environment variables above. AviationStack requests are cached server-side (`src/lib/aviationstack.ts`) and budgeted to stay within the plan's monthly limit.
 
-> **Persistent budgets:** the AviationStack monthly request budget and the LLM monthly call budget are persisted to `data/*.json`. On platforms with an ephemeral filesystem (Railway, Vercel) this counter resets on redeploy. To make the ceilings survive redeploys, mount a persistent volume at `/app/data` (Railway: add a Volume to the service).
+> **Durable budgets:** the AviationStack monthly request budget and the LLM monthly call budget are persisted through a counter store (`src/lib/store.ts`). Set `DATABASE_URL` (Railway's Postgres plugin provides it automatically) to store counters in Postgres — atomic and surviving redeploys and multiple replicas. Without `DATABASE_URL`, the store falls back to a local JSON file at `data/.counters.json`, which resets on redeploy on ephemeral filesystems.
 
 ### Security
 

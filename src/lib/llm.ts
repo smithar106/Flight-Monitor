@@ -71,7 +71,7 @@ async function chat(
 
   // Enforce the monthly cost ceiling at the point of spend. When exhausted, we
   // return null so callers use their deterministic fallback (no 429, no spend).
-  if (!consumeLlmCall()) {
+  if (!(await consumeLlmCall())) {
     return { content: null, ms: 0, inputTokens: 0, outputTokens: 0 };
   }
 
