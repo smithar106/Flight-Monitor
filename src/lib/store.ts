@@ -17,15 +17,24 @@ function getPool(): Pool | undefined {
   const url = process.env.DATABASE_URL;
   if (!url) return undefined;
   if (!globalForDb.__fpPool) {
-    globalForDb.__fpPool = new Pool({
+    const pool = new Pool({
       connectionString: url,
       max: 3,
       ...(process.env.PG_SSL === "true"
         ? { ssl: { rejectUnauthorized: false } }
         : {}),
     });
+    pool.on("error", (err) => {
+      console.error("[store] pg pool error:", err.message);
+    });
+    globalForDb.__fpPool = pool;
   }
   return globalForDb.__fpPool;
+}
+
+function logFallback(op: string, err: unknown): void {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(`[store] ${op} failed, falling back to file:`, msg);
 }
 
 async function ensureSchema(p: Pool): Promise<void> {
@@ -74,8 +83,8 @@ export async function counterGet(name: string, period: string): Promise<number> 
         [name, period]
       );
       return res.rows[0] ? Number(res.rows[0].value) : 0;
-    } catch {
-      // Fall through to the file store on any DB failure.
+    } catch (e) {
+      logFallback("counterGet", e);
     }
   }
   const data = readFile();
@@ -100,8 +109,8 @@ export async function counterAdd(
         [name, period, delta]
       );
       return Number(res.rows[0].value);
-    } catch {
-      // Fall through to the file store on any DB failure.
+    } catch (e) {
+      logFallback("counterAdd", e);
     }
   }
   const key = fileKey(name, period);
@@ -153,8 +162,8 @@ export async function counterReserve(
         allowed: false,
         value: cur.rows[0] ? Number(cur.rows[0].value) : 0,
       };
-    } catch {
-      // Fall through to the file store on any DB failure.
+    } catch (e) {
+      logFallback("counterReserve", e);
     }
   }
   const key = fileKey(name, period);
