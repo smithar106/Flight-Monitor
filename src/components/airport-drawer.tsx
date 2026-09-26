@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { AirportPerformance } from "@/lib/types";
 import { fmtPct, fmtInt } from "@/lib/format";
 import { ScoreBadge, StatusPill } from "./ui";
@@ -25,6 +25,9 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+const FOCUSABLE =
+  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+
 export function AirportDrawer({
   airport,
   onClose,
@@ -32,17 +35,50 @@ export function AirportDrawer({
   airport: AirportPerformance | null;
   onClose: () => void;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
+    if (!airport) return;
+
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+
+    // Move focus into the dialog once it is rendered.
+    const t = setTimeout(() => {
+      panelRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    }, 0);
+
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const focusables = panelRef.current
+        ? Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE))
+        : [];
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || !panelRef.current?.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !panelRef.current?.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      }
     }
-    if (airport) {
-      document.addEventListener("keydown", onKey);
-      document.body.style.overflow = "hidden";
-    }
+
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
     return () => {
+      clearTimeout(t);
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
+      previousFocusRef.current?.focus?.();
     };
   }, [airport, onClose]);
 
@@ -52,11 +88,20 @@ export function AirportDrawer({
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-ink/30 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="absolute inset-y-0 right-0 w-full max-w-md animate-slide-in overflow-y-auto border-l border-line bg-surface shadow-drawer">
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="airport-drawer-title"
+        className="absolute inset-y-0 right-0 w-full max-w-md animate-slide-in overflow-y-auto border-l border-line bg-surface shadow-drawer"
+      >
         <div className="sticky top-0 flex items-start justify-between border-b border-line bg-surface/95 px-6 py-5 backdrop-blur">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xl font-semibold tracking-tight text-ink">
+              <span
+                id="airport-drawer-title"
+                className="font-mono text-xl font-semibold tracking-tight text-ink"
+              >
                 {a.airport.iata}
               </span>
               <StatusPill status={a.status} size="sm" />

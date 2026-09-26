@@ -29,6 +29,7 @@ function arcPath(x1: number, y1: number, x2: number, y2: number): string {
 export function SvgMap({ airports, routes, onSelect }: MapProps) {
   const [nation, setNation] = useState<any>(null);
   const [hovered, setHovered] = useState<AirportPerformance | null>(null);
+  const [focusedIata, setFocusedIata] = useState<string | null>(null);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -84,8 +85,8 @@ export function SvgMap({ airports, routes, onSelect }: MapProps) {
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="w-full"
-        role="img"
-        aria-label="United States airport disruption map"
+        role="group"
+        aria-label="United States airport disruption map. Use Tab to move between airports, Enter to select."
         onMouseMove={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           setCursor({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -128,14 +129,37 @@ export function SvgMap({ airports, routes, onSelect }: MapProps) {
           if (!pos) return null;
           const meta = STATUS_META[a.status];
           const r = radiusFor(a.disruptionScore);
+          const focused = focusedIata === a.airport.iata;
           return (
             <g
               key={a.airport.iata}
+              role="button"
+              tabIndex={0}
+              aria-label={`${a.airport.iata}, ${a.airport.city}. ${meta.label}, disruption score ${a.disruptionScore} out of 100.`}
               onMouseEnter={() => setHovered(a)}
+              onMouseLeave={() => setHovered((h) => (h?.airport.iata === a.airport.iata ? null : h))}
+              onFocus={() => setFocusedIata(a.airport.iata)}
+              onBlur={() => setFocusedIata((cur) => (cur === a.airport.iata ? null : cur))}
               onClick={() => onSelect(a)}
-              className="cursor-pointer"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect(a);
+                }
+              }}
+              className="cursor-pointer outline-none"
             >
               <circle cx={pos[0]} cy={pos[1]} r={r + 5} fill="transparent" />
+              {focused && (
+                <circle
+                  cx={pos[0]}
+                  cy={pos[1]}
+                  r={r + 4}
+                  fill="none"
+                  stroke="#2563EB"
+                  strokeWidth={2}
+                />
+              )}
               <circle
                 cx={pos[0]}
                 cy={pos[1]}

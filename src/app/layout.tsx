@@ -19,10 +19,27 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: process.env.NEXT_PUBLIC_SITE_URL
+    ? new URL(process.env.NEXT_PUBLIC_SITE_URL)
+    : undefined,
   title: "Flight Pulse — U.S. Flight Operations Intelligence",
   description:
     "AI-powered intelligence on U.S. flight operations: what is happening today, what is unusual, and why it matters.",
   icons: { icon: "/favicon.svg" },
+  openGraph: {
+    title: "Flight Pulse — U.S. Flight Operations Intelligence",
+    description:
+      "AI-powered intelligence on U.S. flight operations: what is happening today, what is unusual, and why it matters.",
+    type: "website",
+    siteName: "Flight Pulse",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary",
+    title: "Flight Pulse — U.S. Flight Operations Intelligence",
+    description:
+      "AI-powered intelligence on U.S. flight operations: what is happening today, what is unusual, and why it matters.",
+  },
 };
 
 export default function RootLayout({
