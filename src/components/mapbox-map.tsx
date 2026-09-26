@@ -180,6 +180,19 @@ function MapboxGl({
   return (
     <div className="relative">
       <div ref={containerRef} className="h-[480px] w-full rounded-lg" />
+      {/* Keyboard / screen-reader alternative to the canvas map. Mapbox GL's
+          canvas is not keyboard-navigable, so every airport is exposed as a
+          visually-hidden, focusable button that opens the same detail drawer. */}
+      <ul className="sr-only" aria-label="Airports, keyboard navigation">
+        {airports.map((a) => (
+          <li key={a.airport.iata}>
+            <button type="button" onClick={() => onSelect(a)}>
+              {a.airport.iata}, {a.airport.city} — {STATUS_META[a.status].label}, disruption
+              score {a.disruptionScore} out of 100
+            </button>
+          </li>
+        ))}
+      </ul>
       <div
         ref={tooltipRef}
         className="pointer-events-none absolute z-10 hidden min-w-[150px] rounded-lg border border-line bg-surface px-3 py-2 shadow-raised"

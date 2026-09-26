@@ -6,11 +6,14 @@ import { liveFlightsAvailable } from "@/lib/aviationstack";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json({
-    status: "ok",
-    llm: { available: llmAvailable(), provider: llmProvider(), model: llmModel() },
-    dataSource: liveFlightsAvailable() ? "aviationstack" : "synthetic",
-    mlflow: mlflowEnabled(),
-    time: new Date().toISOString(),
-  });
+  return NextResponse.json(
+    {
+      status: "ok",
+      llm: { available: llmAvailable(), provider: llmProvider(), model: llmModel() },
+      dataSource: liveFlightsAvailable() ? "aviationstack" : "synthetic",
+      mlflow: mlflowEnabled(),
+      time: new Date().toISOString(),
+    },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }

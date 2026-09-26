@@ -170,9 +170,18 @@ Bands: 0–24 Normal · 25–49 Elevated · 50–74 High · 75–100 Severe.
 
 A standard Next.js app — deploy anywhere that supports Node (Vercel, Railway, etc.). A reference `Dockerfile` is included. Set the environment variables above. AviationStack requests are cached server-side (`src/lib/aviationstack.ts`) and budgeted to stay within the plan's monthly limit.
 
+> **Persistent budgets:** the AviationStack monthly request budget and the LLM monthly call budget are persisted to `data/*.json`. On platforms with an ephemeral filesystem (Railway, Vercel) this counter resets on redeploy. To make the ceilings survive redeploys, mount a persistent volume at `/app/data` (Railway: add a Volume to the service).
+
 ### Security
 
-The LLM endpoints (`/api/ask`, `/api/brief`) are rate-limited (in-memory) and can be protected with a bearer token by setting `ADMIN_API_KEY`.
+The LLM endpoints (`/api/ask`, `/api/brief`) are protected in layers:
+
+- **Per-IP rate limits** (in-memory) — 30/min for ask, 60/min for brief.
+- **Global rate limits** (in-memory) — a shared ceiling across all clients, so rotating IPs can't defeat the per-IP limits.
+- **Monthly LLM budget** — a persisted call ceiling (`LLM_MAX_MONTHLY_CALLS`, default 20,000) enforced at the point of LLM spend. When exhausted, the AI layer degrades gracefully to deterministic text (no 429, no spend).
+- **Optional bearer auth** — set `ADMIN_API_KEY` to require `Authorization: Bearer <key>` on the LLM endpoints *and* `/api/metrics`.
+
+The `/api/metrics` endpoint is gated by `ADMIN_API_KEY` when it is set; `/api/health` stays public for uptime checks.
 
 ### Health & metrics
 
