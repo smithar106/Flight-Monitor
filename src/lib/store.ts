@@ -130,6 +130,10 @@ export interface Reservation {
 // the resulting value stays within `limit`. On Postgres this is a single
 // conditional upsert (no check-then-increment race); the file fallback is
 // check-then-add and is intended for single-process local development only.
+//
+// Note: the INSERT uses a plain VALUES list (not INSERT…SELECT…WHERE) because
+// the latter makes the same parameter appear in two type contexts and trips
+// PostgreSQL's "inconsistent types deduced" error.
 export async function counterReserve(
   name: string,
   period: string,
@@ -142,8 +146,7 @@ export async function counterReserve(
       await ensureSchema(p);
       const res = await p.query(
         `INSERT INTO budget_counters (name, period, value)
-         SELECT $1, $2, $3
-         WHERE $3 <= $4
+         VALUES ($1, $2, $3)
          ON CONFLICT (name, period)
          DO UPDATE SET value = budget_counters.value + EXCLUDED.value
          WHERE budget_counters.value + EXCLUDED.value <= $4
